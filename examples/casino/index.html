@@ -1,0 +1,342 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Elite Casino - Premium Gaming Experience</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Header -->
+    <header>
+        <div class="header-content">
+            <div class="casino-logo">🎰 ELITE CASINO</div>
+            <div class="chip-display">
+                <div class="chip-icon">$</div>
+                <div class="chip-amount" id="chipAmount">1000</div>
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Game Selection -->
+        <section id="gameSelection" class="game-selection">
+            <h2>Choose Your Game</h2>
+            <div class="game-grid">
+                <div class="game-card" onclick="casino.showGame('blackjackGame'); casino.currentGame = blackjack;">
+                    <div class="game-icon">🃏</div>
+                    <h3>Blackjack</h3>
+                    <p>Beat the dealer and get as close to 21 as possible. Classic card game with professional dealer AI.</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showGame('rouletteGame'); casino.currentGame = roulette;">
+                    <div class="game-icon">🎡</div>
+                    <h3>Roulette</h3>
+                    <p>Spin the wheel and bet on your lucky numbers. Multiple betting options available!</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showGame('slotsGame'); casino.currentGame = slots;">
+                    <div class="game-icon">🎰</div>
+                    <h3>Slot Machine</h3>
+                    <p>Pull the lever and watch the reels spin. Win big with jackpots up to 100x!</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showGame('pokerGame'); casino.currentGame = poker;">
+                    <div class="game-icon">♠️</div>
+                    <h3>Texas Hold'em</h3>
+                    <p>Face off against our skilled AI opponent. Build the best 5-card hand to win!</p>
+                </div>
+                
+                <div class="game-card" onclick="casino.showGame('goFishGame'); casino.currentGame = goFish;">
+                    <div class="game-icon">🎣</div>
+                    <h3>Go Fish</h3>
+                    <p>Classic card game with 3 AI opponents! Collect the most books to win the pot!</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showGame('solitaireGame'); casino.currentGame = solitaire;">
+                    <div class="game-icon">🃏</div>
+                    <h3>Solitaire</h3>
+                    <p>Classic solitaire with betting! Win 3x your bet by completing the game!</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showGame('mazeGame'); casino.currentGame = maze;">
+                    <div class="game-icon">🧩</div>
+                    <h3>Maze Challenge</h3>
+                    <p>Earn chips by solving mazes! Bigger mazes = bigger rewards!</p>
+                </div>
+
+                <div class="game-card" onclick="casino.showShop();">
+                    <div class="game-icon">🛒</div>
+                    <h3>Upgrade Shop</h3>
+                    <p>Purchase skill-based upgrades to improve your game!</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- Blackjack Game -->
+        <section id="blackjackGame" class="game-container">
+            <div class="game-header">
+                <h2 class="game-title">🃏 Blackjack</h2>
+                <button class="back-btn" onclick="casino.showGameSelection()">← Back to Lobby</button>
+            </div>
+
+            <div class="blackjack-table">
+                <div class="dealer-section">
+                    <div class="section-title">Dealer</div>
+                    <div class="cards" id="dealerCards"></div>
+                    <div class="hand-value" id="dealerValue"></div>
+                </div>
+
+                <div class="message" id="blackjackMessage"></div>
+
+                <div class="player-section">
+                    <div class="section-title">Your Hand</div>
+                    <div class="cards" id="playerCards"></div>
+                    <div class="hand-value" id="playerValue"></div>
+                </div>
+
+                <div class="betting-section">
+                    <input type="number" id="blackjackBet" class="bet-input" placeholder="Bet Amount" value="50" min="1">
+                    <button class="btn" id="dealBtn" onclick="blackjack.placeBet()">Deal</button>
+                </div>
+
+                <div class="game-controls">
+                    <button class="btn" id="hitBtn" onclick="blackjack.hit()" disabled>Hit</button>
+                    <button class="btn btn-secondary" id="standBtn" onclick="blackjack.stand()" disabled>Stand</button>
+                </div>
+            </div>
+        </section>
+
+        <!-- Roulette Game -->
+        <section id="rouletteGame" class="game-container">
+            <div class="game-header">
+                <h2 class="game-title">🎡 Roulette</h2>
+                <button class="back-btn" onclick="casino.showGameSelection()">← Back to Lobby</button>
+            </div>
+
+            <div class="roulette-container">
+                <div class="roulette-wheel-container">
+                    <div class="roulette-wheel" id="rouletteWheel">
+                        <div class="roulette-ball"></div>
+                        <div class="wheel-number">🎯</div>
+                    </div>
+                    <div class="roulette-result" id="rouletteResult">Place your bets!</div>
+                </div>
+
+                <div class="roulette-betting">
+                    <h3 style="color: var(--accent-gold); text-align: center; margin-bottom: 20px;">Place Your Bets</h3>
+
+                    <div class="betting-section">
+                        <input type="number" id="rouletteBet" class="bet-input" placeholder="Bet per selection" value="50" min="1">
+                        <button class="btn" id="spinBtn" onclick="roulette.spin()">Spin Wheel</button>
+                    </div>
+
+                    <div class="betting-grid">
+                        <div class="bet-option red" data-bet-type="color" data-bet-value="red" onclick="roulette.selectBet('color', 'red')">
+                            Red
+                        </div>
+                        <div class="bet-option black" data-bet-type="color" data-bet-value="black" onclick="roulette.selectBet('color', 'black')">
+                            Black
+                        </div>
+                        <div class="bet-option green" data-bet-type="color" data-bet-value="green" onclick="roulette.selectBet('color', 'green')">
+                            Zero
+                        </div>
+                        <div class="bet-option" data-bet-type="evenodd" data-bet-value="even" onclick="roulette.selectBet('evenodd', 'even')">
+                            Even
+                        </div>
+                        <div class="bet-option" data-bet-type="evenodd" data-bet-value="odd" onclick="roulette.selectBet('evenodd', 'odd')">
+                            Odd
+                        </div>
+                        <div class="bet-option" data-bet-type="range" data-bet-value="low" onclick="roulette.selectBet('range', 'low')">
+                            1-18
+                        </div>
+                        <div class="bet-option" data-bet-type="range" data-bet-value="high" onclick="roulette.selectBet('range', 'high')">
+                            19-36
+                        </div>
+                    </div>
+
+                    <h4 style="color: var(--accent-gold); margin-top: 20px; text-align: center;">Bet on Numbers</h4>
+                    <div class="number-grid" id="numberGrid">
+                        <div class="number-bet green" data-bet-type="number" data-bet-value="0" onclick="roulette.selectBet('number', 0)">0</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="1" onclick="roulette.selectBet('number', 1)">1</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="2" onclick="roulette.selectBet('number', 2)">2</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="3" onclick="roulette.selectBet('number', 3)">3</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="4" onclick="roulette.selectBet('number', 4)">4</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="5" onclick="roulette.selectBet('number', 5)">5</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="6" onclick="roulette.selectBet('number', 6)">6</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="7" onclick="roulette.selectBet('number', 7)">7</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="8" onclick="roulette.selectBet('number', 8)">8</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="9" onclick="roulette.selectBet('number', 9)">9</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="10" onclick="roulette.selectBet('number', 10)">10</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="11" onclick="roulette.selectBet('number', 11)">11</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="12" onclick="roulette.selectBet('number', 12)">12</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="13" onclick="roulette.selectBet('number', 13)">13</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="14" onclick="roulette.selectBet('number', 14)">14</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="15" onclick="roulette.selectBet('number', 15)">15</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="16" onclick="roulette.selectBet('number', 16)">16</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="17" onclick="roulette.selectBet('number', 17)">17</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="18" onclick="roulette.selectBet('number', 18)">18</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="19" onclick="roulette.selectBet('number', 19)">19</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="20" onclick="roulette.selectBet('number', 20)">20</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="21" onclick="roulette.selectBet('number', 21)">21</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="22" onclick="roulette.selectBet('number', 22)">22</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="23" onclick="roulette.selectBet('number', 23)">23</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="24" onclick="roulette.selectBet('number', 24)">24</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="25" onclick="roulette.selectBet('number', 25)">25</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="26" onclick="roulette.selectBet('number', 26)">26</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="27" onclick="roulette.selectBet('number', 27)">27</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="28" onclick="roulette.selectBet('number', 28)">28</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="29" onclick="roulette.selectBet('number', 29)">29</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="30" onclick="roulette.selectBet('number', 30)">30</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="31" onclick="roulette.selectBet('number', 31)">31</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="32" onclick="roulette.selectBet('number', 32)">32</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="33" onclick="roulette.selectBet('number', 33)">33</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="34" onclick="roulette.selectBet('number', 34)">34</div>
+                        <div class="number-bet black" data-bet-type="number" data-bet-value="35" onclick="roulette.selectBet('number', 35)">35</div>
+                        <div class="number-bet red" data-bet-type="number" data-bet-value="36" onclick="roulette.selectBet('number', 36)">36</div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Slots Game -->
+        <section id="slotsGame" class="game-container">
+            <div class="game-header">
+                <h2 class="game-title">🎰 Slot Machine</h2>
+                <button class="back-btn" onclick="casino.showGameSelection()">← Back to Lobby</button>
+            </div>
+
+            <div class="slots-machine">
+                <div class="slots-display">
+                    <div class="slot-reel">🍒</div>
+                    <div class="slot-reel">🍋</div>
+                    <div class="slot-reel">🍊</div>
+                </div>
+
+                <div class="message" id="slotsMessage">Good luck!</div>
+
+                <div class="betting-section">
+                    <input type="number" id="slotsBet" class="bet-input" placeholder="Bet Amount" value="50" min="1">
+                    <button class="btn" id="slotsSpinBtn" onclick="slots.spin()">🎰 SPIN</button>
+                </div>
+
+                <div class="payout-table">
+                    <h3>💰 Payout Table</h3>
+                    <div class="payout-row">
+                        <span>7️⃣ 7️⃣ 7️⃣</span>
+                        <span style="color: var(--accent-gold);">100x</span>
+                    </div>
+                    <div class="payout-row">
+                        <span>💎 💎 💎</span>
+                        <span style="color: var(--accent-gold);">50x</span>
+                    </div>
+                    <div class="payout-row">
+                        <span>⭐ ⭐ ⭐</span>
+                        <span style="color: var(--accent-gold);">25x</span>
+                    </div>
+                    <div class="payout-row">
+                        <span>Any Three Match</span>
+                        <span style="color: var(--accent-gold);">10x</span>
+                    </div>
+                    <div class="payout-row">
+                        <span>Any Two Match</span>
+                        <span style="color: var(--accent-gold);">2x</span>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Poker Game -->
+        <section id="pokerGame" class="game-container">
+            <div class="game-header">
+                <h2 class="game-title">♠️ Texas Hold'em</h2>
+                <button class="back-btn" onclick="casino.showGameSelection()">← Back to Lobby</button>
+            </div>
+
+            <div class="poker-table">
+                <div class="pot-display" id="potAmount">Pot: 0 chips</div>
+
+                <div class="community-cards">
+                    <div class="section-title">Community Cards</div>
+                    <div class="cards" id="communityCards"></div>
+                </div>
+
+                <div class="poker-players">
+                    <div class="poker-player">
+                        <div class="player-name">🤖 AI Opponent</div>
+                        <div class="cards" id="aiCards"></div>
+                        <div class="poker-hand-rank" id="aiHandRank"></div>
+                    </div>
+
+                    <div class="poker-player active">
+                        <div class="player-name">👤 You</div>
+                        <div class="cards" id="playerCards"></div>
+                        <div class="poker-hand-rank" id="playerHandRank"></div>
+                    </div>
+                </div>
+
+                <div class="message" id="pokerMessage"></div>
+
+                <div class="betting-section">
+                    <input type="number" id="pokerBet" class="bet-input" placeholder="Ante Amount" value="50" min="1">
+                    <button class="btn" id="pokerDealBtn" onclick="poker.startGame()">Deal</button>
+                </div>
+
+                <div class="game-controls">
+                    <button class="btn" id="pokerCheckBtn" onclick="poker.playerCheck()" disabled>Check</button>
+                    <button class="btn" id="pokerBetBtn" onclick="poker.playerBetAction()" disabled>Bet</button>
+                    <button class="btn btn-secondary" id="pokerFoldBtn" onclick="poker.playerFold()" disabled>Fold</button>
+                </div>
+            </div>
+        </section>
+        
+        <!-- Go Fish Game -->
+        <section id="goFishGame" class="game-container">
+            <div class="game-header">
+                <h2 class="game-title">🎣 Go Fish</h2>
+                <button class="back-btn" onclick="casino.showGameSelection()">← Back to Lobby</button>
+            </div>
+            
+            <div class="poker-table">
+                <div class="pot-display" id="goFishPot">Pot: 0 chips</div>
+                <div class="pot-display" id="goFishDeck" style="font-size: 1.2em;">Deck: 52 cards</div>
+                
+                <div class="message" id="goFishMessage">Place your ante to start!</div>
+                
+                <div class="poker-players" style="grid-template-columns: 1fr 1fr 1fr;">
+                    <div class="poker-player">
+                        <div class="player-name" id="ai1Name">🤖 AI Player 1</div>
+                        <div class="cards" id="ai1Cards"></div>
+                        <div class="poker-hand-rank" id="ai1Books">Books: 0</div>
+                    </div>
+                    
+                    <div class="poker-player">
+                        <div class="player-name" id="ai2Name">🤖 AI Player 2</div>
+                        <div class="cards" id="ai2Cards"></div>
+                        <div class="poker-hand-rank" id="ai2Books">Books: 0</div>
+                    </div>
+                    
+                    <div class="poker-player">
+                        <div class="player-name" id="ai3Name">🤖 AI Player 3</div>
+                        <div class="cards" id="ai3Cards"></div>
+                        <div class="poker-hand-rank" id="ai3Books">Books: 0</div>
+                    </div>
+                </div>
+                
+                <div class="poker-player active" style="margin-top: 30px;">
+                    <div class="player-name">👤 Your Hand</div>
+                    <div class="cards" id="goFishPlayerCards"></div>
+                    <div class="poker-hand-rank" id="playerBooksCount">Books: None</div>
+                </div>
+                
+                <div class="betting-section">
+                    <input type="number" id="goFishBet" class="bet-input" placeholder="Ante Amount" value="50" min="1">
+                    <button class="btn" id="goFishStartBtn" onclick="goFish.startGame()">Start Game</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <script src="game.js"></script>
+</body>
+</html>

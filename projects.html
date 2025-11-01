@@ -1,0 +1,370 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Projects - Portfolio</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/portfolio.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<a href="index.html" class="logo">Portfolio</a>
+					</header>
+
+				<!-- Nav -->
+					<nav id="nav">
+						<ul class="links">
+							<li><a href="index.html">Home</a></li>
+							<li class="active"><a href="projects.html">Projects</a></li>
+							<li><a href="code-examples.html">Code Examples</a></li>
+							<li><a href="about.html">About Me</a></li>
+						</ul>
+						<ul class="icons">
+							<li><a href="#" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
+							<li><a href="#" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
+							<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+						</ul>
+					</nav>
+
+				<!-- Main -->
+					<div id="main">
+
+						<!-- Project Filter -->
+						<section class="project-filter">
+							<h2>My Projects</h2>
+							<div class="filter-buttons">
+								<button class="filter-btn active" data-filter="all">All Projects</button>
+								<button class="filter-btn" data-filter="web">Web Apps</button>
+								<button class="filter-btn" data-filter="mobile">Mobile</button>
+								<button class="filter-btn" data-filter="api">APIs</button>
+								<button class="filter-btn" data-filter="ml">Machine Learning</button>
+							</div>
+						</section>
+
+						<!-- Project 1: Full Details with Gallery -->
+						<article class="post project-detail" data-category="web">
+							<header class="major">
+								<span class="date">January 2025</span>
+								<h1>Infinite Canvas</h1>
+								<p>An drawing canvas with infinite potential to zoom in and out.<br />
+								All using vectors to keep things scaled</p>
+							</header>
+
+							<!-- Photo Gallery -->
+							<div class="gallery-grid">
+								<div class="gallery-item" onclick="openLightbox(0)">
+									<img src="images/endlesspaper.png" alt="Project Screenshot 1" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(1)">
+									<img src="images/helloworld.png" alt="Project Screenshot 2" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(2)">
+									<img src="images/pic03.jpg" alt="Project Screenshot 3" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(3)">
+									<img src="images/pic04.jpg" alt="Project Screenshot 4" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+							</div>
+
+							<!-- Video Demo -->
+							<div class="video-container">
+								<h3>Project Demo Video</h3>
+								<!-- PLACEHOLDER: Add your video URL -->
+								<video controls poster="images/pic01.jpg">
+									<source src="videos/webrec.mp4" type="video/mp4">
+									Your browser does not support the video tag.
+								</video>
+							</div>
+
+							<div class="project-info">
+								<h3>Key Features</h3>
+								<ul>
+									<li>Near Infinite zoom</li>
+									<li>No ads</li>
+									<li>Little lag</li>
+									<li>Lots of options</li>
+									<li>Image importing through vectorization</li>
+									<li>100% free</li>
+								</ul>
+
+								<h3>Technologies Used</h3>
+								<div class="tech-stack">
+									<span class="tech-tag">Javascript</span>
+									<span class="tech-tag">HTML</span>
+									<span class="tech-tag">CSS</span>
+								</div>
+
+								<h3>Challenges</h3>
+								<p>The biggest challenge I had experienced was how javascript is hardly built to handle active scaling and vectorization with separate angles as they are drawn into huge floating point numbers.</p>
+
+								<div class="project-links">
+									<a href="#" class="button primary">View Live Demo</a>
+									<a href="https://github.com/UnicornMaster-dev/endlesspaper.github.io" class="button">GitHub Repository</a>
+								</div>
+							</div>
+						</article>
+
+						<hr class="project-divider" />
+
+						<!-- Project 2: Mobile App -->
+						<article class="post project-detail" data-category="mobile">
+							<header class="major">
+								<span class="date">December 2024</span>
+								<h1>Fitness Tracking App</h1>
+								<p>Cross-platform mobile application with AI-powered workout recommendations<br />
+								and social features to motivate users.</p>
+							</header>
+
+							<!-- Photo Gallery -->
+							<div class="gallery-grid">
+								<div class="gallery-item" onclick="openLightbox(4)">
+									<img src="images/pic05.jpg" alt="App Screenshot 1" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(5)">
+									<img src="images/pic06.jpg" alt="App Screenshot 2" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(6)">
+									<img src="images/pic07.jpg" alt="App Screenshot 3" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(7)">
+									<img src="images/pic08.jpg" alt="App Screenshot 4" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+							</div>
+
+							<!-- Video Demo -->
+							<div class="video-container">
+								<h3>App Walkthrough</h3>
+								<!-- PLACEHOLDER: Add your video URL -->
+								<video controls poster="images/pic05.jpg">
+									<source src="videos/fitness-demo.mp4" type="video/mp4">
+									Your browser does not support the video tag.
+								</video>
+							</div>
+
+							<div class="project-info">
+								<h3>Key Features</h3>
+								<ul>
+									<li>AI-powered personalized workout plans</li>
+									<li>Real-time exercise tracking with sensors</li>
+									<li>Social challenges and leaderboards</li>
+									<li>Nutrition tracking and meal planning</li>
+									<li>Progress analytics and insights</li>
+									<li>Integration with wearable devices</li>
+								</ul>
+
+								<h3>Technologies Used</h3>
+								<div class="tech-stack">
+									<span class="tech-tag">React Native</span>
+									<span class="tech-tag">TypeScript</span>
+									<span class="tech-tag">Firebase</span>
+									<span class="tech-tag">TensorFlow Lite</span>
+									<span class="tech-tag">GraphQL</span>
+									<span class="tech-tag">Jest</span>
+								</div>
+
+								<h3>Impact</h3>
+								<p>Launched with 10,000+ downloads in the first month. Average user engagement of 4.5 sessions per week with 4.8-star rating on both iOS and Android stores.</p>
+
+								<div class="project-links">
+									<a href="#" class="button primary">App Store</a>
+									<a href="#" class="button primary">Google Play</a>
+									<a href="#" class="button">View Source</a>
+								</div>
+							</div>
+						</article>
+
+						<hr class="project-divider" />
+
+						<!-- Project 3: Data Visualization -->
+						<article class="post project-detail" data-category="web">
+							<header class="major">
+								<span class="date">November 2024</span>
+								<h1>Analytics Dashboard</h1>
+								<p>Interactive data visualization platform for real-time business intelligence<br />
+								with customizable widgets and reporting.</p>
+							</header>
+
+							<!-- Photo Gallery -->
+							<div class="gallery-grid">
+								<div class="gallery-item" onclick="openLightbox(8)">
+									<img src="images/pic09.jpg" alt="Dashboard Screenshot 1" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(9)">
+									<img src="images/pic01.jpg" alt="Dashboard Screenshot 2" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(10)">
+									<img src="images/pic02.jpg" alt="Dashboard Screenshot 3" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+								<div class="gallery-item" onclick="openLightbox(11)">
+									<img src="images/pic03.jpg" alt="Dashboard Screenshot 4" />
+									<div class="overlay">
+										<i class="fas fa-search-plus"></i>
+									</div>
+								</div>
+			</div>
+
+							<div class="video-container">
+								<h3>Dashboard Demo</h3>
+								<!-- PLACEHOLDER: Add your video URL -->
+								<video controls poster="images/pic09.jpg">
+									<source src="videos/dashboard-demo.mp4" type="video/mp4">
+									Your browser does not support the video tag.
+								</video>
+							</div>
+
+							<div class="project-info">
+								<h3>Key Features</h3>
+								<ul>
+									<li>Real-time data streaming and updates</li>
+									<li>Customizable dashboard layouts</li>
+									<li>Interactive charts with D3.js</li>
+									<li>Export reports to PDF/Excel</li>
+									<li>Role-based access control</li>
+									<li>Mobile-responsive design</li>
+								</ul>
+
+								<h3>Technologies Used</h3>
+								<div class="tech-stack">
+									<span class="tech-tag">Vue.js</span>
+									<span class="tech-tag">D3.js</span>
+									<span class="tech-tag">Python</span>
+									<span class="tech-tag">FastAPI</span>
+									<span class="tech-tag">PostgreSQL</span>
+									<span class="tech-tag">WebSocket</span>
+									<span class="tech-tag">Kubernetes</span>
+								</div>
+
+								<div class="project-links">
+									<a href="#" class="button primary">View Demo</a>
+									<a href="#" class="button">Documentation</a>
+								</div>
+							</div>
+						</article>
+
+						<!-- More Projects Placeholder -->
+						<section class="more-projects">
+							<h2>More Projects Coming Soon</h2>
+							<p>I'm constantly working on new and exciting projects. Check back regularly for updates!</p>
+						</section>
+
+					</div>
+
+				<!-- Footer -->
+					<footer id="footer">
+						<section>
+							<form method="post" action="#">
+								<div class="fields">
+									<div class="field">
+										<label for="name">Name</label>
+										<input type="text" name="name" id="name" />
+									</div>
+									<div class="field">
+										<label for="email">Email</label>
+										<input type="text" name="email" id="email" />
+									</div>
+									<div class="field">
+										<label for="message">Message</label>
+										<textarea name="message" id="message" rows="3"></textarea>
+									</div>
+								</div>
+								<ul class="actions">
+									<li><input type="submit" value="Send Message" /></li>
+								</ul>
+							</form>
+						</section>
+						<section class="split contact">
+							<section class="alt">
+								<h3>Location</h3>
+								<p>Your City, Your State<br />
+								Your Country</p>
+							</section>
+							<section>
+								<h3>Phone</h3>
+								<p><a href="#">(000) 000-0000</a></p>
+							</section>
+							<section>
+								<h3>Email</h3>
+								<p><a href="#">your.email@example.com</a></p>
+							</section>
+							<section>
+								<h3>Social</h3>
+								<ul class="icons alt">
+									<li><a href="#" class="icon brands alt fa-linkedin"><span class="label">LinkedIn</span></a></li>
+									<li><a href="#" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+									<li><a href="#" class="icon brands alt fa-twitter"><span class="label">Twitter</span></a></li>
+									<li><a href="#" class="icon brands alt fa-instagram"><span class="label">Instagram</span></a></li>
+								</ul>
+							</section>
+						</section>
+					</footer>
+
+				<!-- Copyright -->
+					<div id="copyright">
+						<ul><li>&copy; Your Name</li><li>Portfolio 2025</li></ul>
+					</div>
+
+			</div>
+
+		<!-- Lightbox Modal -->
+		<div id="lightbox" class="lightbox" onclick="closeLightbox()">
+			<span class="close">&times;</span>
+			<img class="lightbox-content" id="lightbox-img">
+			<div class="lightbox-caption" id="lightbox-caption"></div>
+			<a class="prev" onclick="changeImage(-1); event.stopPropagation();">&#10094;</a>
+			<a class="next" onclick="changeImage(1); event.stopPropagation();">&#10095;</a>
+		</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+			<script src="assets/js/portfolio.js"></script>
+
+	</body>
+</html>
+

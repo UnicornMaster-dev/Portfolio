@@ -1,0 +1,1533 @@
+<!DOCTYPE HTML>
+<html>
+	<head>
+		<title>Code Examples - Portfolio</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<link rel="stylesheet" href="assets/css/portfolio.css" />
+		<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/themes/prism-tomorrow.min.css" />
+		<noscript><link rel="stylesheet" href="assets/css/noscript.css" /></noscript>
+	</head>
+	<body class="is-preload">
+
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<a href="index.html" class="logo">Portfolio</a>
+					</header>
+
+				<!-- Nav -->
+					<nav id="nav">
+						<ul class="links">
+							<li><a href="index.html">Home</a></li>
+							<li><a href="projects.html">Projects</a></li>
+							<li class="active"><a href="code-examples.html">Code Examples</a></li>
+							<li><a href="about.html">About Me</a></li>
+						</ul>
+						<ul class="icons">
+							<li><a href="#" class="icon brands fa-linkedin"><span class="label">LinkedIn</span></a></li>
+							<li><a href="#" class="icon brands fa-github"><span class="label">GitHub</span></a></li>
+							<li><a href="#" class="icon brands fa-twitter"><span class="label">Twitter</span></a></li>
+							<li><a href="#" class="icon brands fa-instagram"><span class="label">Instagram</span></a></li>
+						</ul>
+					</nav>
+
+				<!-- Main -->
+					<div id="main">
+
+						<section class="post">
+							<header class="major">
+								<h1>Code Examples</h1>
+								<p>A showcase of my coding style, problem-solving approach, and technical expertise<br />
+								across various programming languages and frameworks.</p>
+							</header>
+
+							<!-- Filter Tabs -->
+							<div class="code-filter-tabs">
+								<button class="tab-btn active" data-lang="javascript">JavaScript</button>
+								<button class="tab-btn" data-lang="python">Python</button>
+								<button class="tab-btn" data-lang="react">React</button>
+								<button class="tab-btn" data-lang="java">Java</button>
+							</div>
+
+							<!-- JavaScript Examples -->
+							<div class="code-section active" data-category="javascript">
+								<h2><i class="fab fa-js-square"></i> JavaScript Examples - Interactive Demos</h2>
+
+								<div class="code-example-card">
+									<h3>Casino Slot Machine Game</h3>
+									<p>A fully functional slot machine with animations, sound effects simulation, and win calculations.</p>
+									<div class="iframe-container">
+										<iframe id="slotMachineFrame" srcdoc='
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+	font-family: Arial, sans-serif;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	display: flex;
+	justify-content: center;
+	align-items: center;
+	min-height: 100vh;
+	padding: 20px;
+}
+.slot-machine {
+	background: #2d3748;
+	padding: 30px;
+	border-radius: 20px;
+	box-shadow: 0 20px 60px rgba(0,0,0,0.4);
+	text-align: center;
+	max-width: 500px;
+	width: 100%;
+}
+.slot-machine h2 {
+	color: #ffd700;
+	margin-bottom: 20px;
+	font-size: 2em;
+	text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+}
+.chips-display {
+	background: rgba(255,255,255,0.1);
+	padding: 15px;
+	border-radius: 10px;
+	margin-bottom: 20px;
+	color: #fff;
+	font-size: 1.2em;
+}
+.chips-amount {
+	color: #ffd700;
+	font-weight: bold;
+	font-size: 1.5em;
+}
+.reels {
+	display: flex;
+	justify-content: center;
+	gap: 10px;
+	margin: 30px 0;
+}
+.reel {
+	width: 100px;
+	height: 100px;
+	background: #fff;
+	border: 4px solid #ffd700;
+	border-radius: 15px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 3em;
+	box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+	transition: all 0.3s ease;
+}
+.reel.spinning {
+	animation: spin 0.1s linear infinite;
+}
+@keyframes spin {
+	0% { transform: translateY(0); }
+	50% { transform: translateY(-10px); }
+	100% { transform: translateY(0); }
+}
+.bet-controls {
+	margin: 20px 0;
+}
+.bet-controls input {
+	width: 120px;
+	padding: 10px;
+	font-size: 1em;
+	border: 2px solid #ffd700;
+	border-radius: 5px;
+	margin: 0 10px;
+}
+button {
+	background: linear-gradient(135deg, #ffd700, #ffed4e);
+	color: #2d3748;
+	border: none;
+	padding: 15px 40px;
+	font-size: 1.2em;
+	font-weight: bold;
+	border-radius: 30px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	box-shadow: 0 5px 15px rgba(255,215,0,0.4);
+}
+button:hover:not(:disabled) {
+	transform: translateY(-3px);
+	box-shadow: 0 8px 20px rgba(255,215,0,0.6);
+}
+button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.result {
+	margin-top: 20px;
+	font-size: 1.3em;
+	font-weight: bold;
+	min-height: 40px;
+	color: #fff;
+}
+.result.win { color: #4ade80; animation: flash 0.5s ease; }
+.result.lose { color: #f87171; }
+@keyframes flash {
+	0%, 100% { opacity: 1; }
+	50% { opacity: 0.5; }
+}
+</style>
+</head>
+<body>
+<div class="slot-machine">
+	<h2>🎰 Slot Machine</h2>
+	<div class="chips-display">
+		Chips: <span class="chips-amount" id="chips">1000</span>
+	</div>
+	<div class="reels">
+		<div class="reel" id="reel1">🍒</div>
+		<div class="reel" id="reel2">🍋</div>
+		<div class="reel" id="reel3">🍊</div>
+	</div>
+	<div class="bet-controls">
+		<label style="color:#fff;">Bet:</label>
+		<input type="number" id="betAmount" value="50" min="10" max="500">
+	</div>
+	<button onclick="spin()" id="spinBtn">SPIN</button>
+	<div class="result" id="result"></div>
+</div>
+<script>
+const symbols = ["🍒", "🍋", "🍊", "🍇", "⭐", "💎", "7️⃣"];
+let chips = 1000;
+let isSpinning = false;
+
+function updateChips() {
+	document.getElementById("chips").textContent = chips;
+}
+
+function spin() {
+	if (isSpinning) return;
+	const bet = parseInt(document.getElementById("betAmount").value);
+	if (bet > chips) {
+		document.getElementById("result").textContent = "Not enough chips!";
+		document.getElementById("result").className = "result lose";
+		return;
+	}
+
+	isSpinning = true;
+	chips -= bet;
+	updateChips();
+	document.getElementById("spinBtn").disabled = true;
+	document.getElementById("result").textContent = "";
+
+	const reels = [
+		document.getElementById("reel1"),
+		document.getElementById("reel2"),
+		document.getElementById("reel3")
+	];
+
+	reels.forEach(reel => reel.classList.add("spinning"));
+
+	let spinCount = 0;
+	const spinInterval = setInterval(() => {
+		reels.forEach(reel => {
+			reel.textContent = symbols[Math.floor(Math.random() * symbols.length)];
+		});
+		spinCount++;
+		if (spinCount > 20) {
+			clearInterval(spinInterval);
+			finishSpin(reels, bet);
+		}
+	}, 100);
+}
+
+function finishSpin(reels, bet) {
+	const results = [
+		symbols[Math.floor(Math.random() * symbols.length)],
+		symbols[Math.floor(Math.random() * symbols.length)],
+		symbols[Math.floor(Math.random() * symbols.length)]
+	];
+
+	reels.forEach((reel, i) => {
+		reel.textContent = results[i];
+		reel.classList.remove("spinning");
+	});
+
+	const resultDiv = document.getElementById("result");
+
+	if (results[0] === results[1] && results[1] === results[2]) {
+		let winAmount = bet * 10;
+		if (results[0] === "💎") winAmount = bet * 50;
+		if (results[0] === "7️⃣") winAmount = bet * 100;
+		chips += winAmount;
+		resultDiv.textContent = `🎉 JACKPOT! Won ${winAmount} chips!`;
+		resultDiv.className = "result win";
+	} else if (results[0] === results[1] || results[1] === results[2] || results[0] === results[2]) {
+		const winAmount = bet * 2;
+		chips += winAmount;
+		resultDiv.textContent = `Win! +${winAmount} chips`;
+		resultDiv.className = "result win";
+	} else {
+		resultDiv.textContent = `No match. -${bet} chips`;
+		resultDiv.className = "result lose";
+	}
+
+	updateChips();
+	isSpinning = false;
+	document.getElementById("spinBtn").disabled = false;
+}
+</script>
+</body>
+</html>
+										' style="width:100%; height:600px; border:none; border-radius:10px;"></iframe>
+									</div>
+								</div>
+
+								<div class="code-example-card">
+									<h3>Blackjack Card Game</h3>
+									<p>Play Blackjack against the dealer with proper game logic, card counting, and betting system.</p>
+									<div class="iframe-container">
+										<iframe srcdoc='
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+	font-family: Arial, sans-serif;
+	background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
+	padding: 20px;
+	min-height: 100vh;
+}
+.game-container {
+	max-width: 800px;
+	margin: 0 auto;
+	background: #0f172a;
+	border-radius: 20px;
+	padding: 30px;
+	box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+h2 {
+	color: #fbbf24;
+	text-align: center;
+	margin-bottom: 20px;
+	font-size: 2em;
+}
+.stats {
+	display: flex;
+	justify-content: space-around;
+	margin-bottom: 30px;
+	flex-wrap: wrap;
+	gap: 10px;
+}
+.stat {
+	background: rgba(251,191,36,0.1);
+	padding: 15px 25px;
+	border-radius: 10px;
+	color: #fff;
+	border: 2px solid #fbbf24;
+}
+.stat strong {
+	color: #fbbf24;
+	font-size: 1.3em;
+}
+.table {
+	background: #064e3b;
+	border-radius: 15px;
+	padding: 30px;
+	margin: 20px 0;
+	border: 3px solid #fbbf24;
+}
+.hand {
+	margin: 20px 0;
+}
+.hand h3 {
+	color: #fbbf24;
+	margin-bottom: 15px;
+}
+.cards {
+	display: flex;
+	gap: 10px;
+	flex-wrap: wrap;
+	min-height: 100px;
+}
+.card {
+	width: 60px;
+	height: 90px;
+	background: #fff;
+	border-radius: 8px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-size: 1.5em;
+	font-weight: bold;
+	box-shadow: 0 4px 8px rgba(0,0,0,0.3);
+	animation: dealCard 0.3s ease;
+}
+@keyframes dealCard {
+	from { transform: translateY(-50px) rotateY(90deg); opacity: 0; }
+	to { transform: translateY(0) rotateY(0); opacity: 1; }
+}
+.card.red { color: #dc2626; }
+.card.black { color: #000; }
+.card.hidden {
+	background: linear-gradient(135deg, #3b82f6, #1e40af);
+	color: transparent;
+}
+.controls {
+	display: flex;
+	justify-content: center;
+	gap: 15px;
+	margin: 20px 0;
+	flex-wrap: wrap;
+}
+button {
+	padding: 15px 30px;
+	font-size: 1.1em;
+	font-weight: bold;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+.btn-primary {
+	background: linear-gradient(135deg, #10b981, #059669);
+	color: #fff;
+}
+.btn-secondary {
+	background: linear-gradient(135deg, #f59e0b, #d97706);
+	color: #fff;
+}
+.btn-danger {
+	background: linear-gradient(135deg, #ef4444, #dc2626);
+	color: #fff;
+}
+button:hover:not(:disabled) {
+	transform: translateY(-3px);
+	box-shadow: 0 8px 20px rgba(0,0,0,0.4);
+}
+button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.bet-input {
+	padding: 15px;
+	font-size: 1.1em;
+	border: 2px solid #fbbf24;
+	border-radius: 10px;
+	width: 150px;
+	text-align: center;
+}
+.message {
+	text-align: center;
+	font-size: 1.3em;
+	font-weight: bold;
+	margin: 20px 0;
+	min-height: 30px;
+	color: #fbbf24;
+}
+</style>
+</head>
+<body>
+<div class="game-container">
+	<h2>♠️ Blackjack ♥️</h2>
+	<div class="stats">
+		<div class="stat">Chips: <strong id="chips">1000</strong></div>
+		<div class="stat">Current Bet: <strong id="currentBet">0</strong></div>
+		<div class="stat">Wins: <strong id="wins">0</strong></div>
+	</div>
+
+	<div class="table">
+		<div class="hand">
+			<h3>Dealer (<span id="dealerScore">0</span>)</h3>
+			<div class="cards" id="dealerCards"></div>
+		</div>
+		<div class="hand">
+			<h3>You (<span id="playerScore">0</span>)</h3>
+			<div class="cards" id="playerCards"></div>
+		</div>
+	</div>
+
+	<div class="message" id="message"></div>
+
+	<div class="controls" id="betControls">
+		<input type="number" class="bet-input" id="betAmount" value="50" min="10" max="500">
+		<button class="btn-primary" onclick="startGame()">Deal Cards</button>
+	</div>
+
+	<div class="controls" id="gameControls" style="display:none;">
+		<button class="btn-primary" onclick="hit()">Hit</button>
+		<button class="btn-secondary" onclick="stand()">Stand</button>
+		<button class="btn-danger" onclick="newRound()">New Round</button>
+	</div>
+</div>
+<script>
+const suits = ["♠️", "♥️", "♦️", "♣️"];
+const values = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+let deck = [];
+let playerHand = [];
+let dealerHand = [];
+let chips = 1000;
+let currentBet = 0;
+let wins = 0;
+let gameActive = false;
+
+function createDeck() {
+	deck = [];
+	for (let suit of suits) {
+		for (let value of values) {
+			const isRed = suit === "♥️" || suit === "♦️";
+			deck.push({ value, suit, display: value + suit, color: isRed ? "red" : "black" });
+		}
+	}
+	deck = deck.sort(() => Math.random() - 0.5);
+}
+
+function getCardValue(card) {
+	if (card.value === "A") return 11;
+	if (["J", "Q", "K"].includes(card.value)) return 10;
+	return parseInt(card.value);
+}
+
+function calculateScore(hand) {
+	let score = 0;
+	let aces = 0;
+	for (let card of hand) {
+		score += getCardValue(card);
+		if (card.value === "A") aces++;
+	}
+	while (score > 21 && aces > 0) {
+		score -= 10;
+		aces--;
+	}
+	return score;
+}
+
+function displayCards(hand, elementId, hideFirst = false) {
+	const container = document.getElementById(elementId);
+	container.innerHTML = "";
+	hand.forEach((card, index) => {
+		const cardEl = document.createElement("div");
+		cardEl.className = `card ${card.color}`;
+		if (hideFirst && index === 0) {
+			cardEl.className += " hidden";
+			cardEl.textContent = "?";
+		} else {
+			cardEl.textContent = card.display;
+		}
+		container.appendChild(cardEl);
+	});
+}
+
+function updateScores(hideDealer = false) {
+	document.getElementById("playerScore").textContent = calculateScore(playerHand);
+	document.getElementById("dealerScore").textContent = hideDealer ? "?" : calculateScore(dealerHand);
+}
+
+function startGame() {
+	const bet = parseInt(document.getElementById("betAmount").value);
+	if (bet > chips) {
+		document.getElementById("message").textContent = "Not enough chips!";
+		return;
+	}
+
+	chips -= bet;
+	currentBet = bet;
+	updateStats();
+
+	createDeck();
+	playerHand = [deck.pop(), deck.pop()];
+	dealerHand = [deck.pop(), deck.pop()];
+
+	displayCards(playerHand, "playerCards");
+	displayCards(dealerHand, "dealerCards", true);
+	updateScores(true);
+
+	document.getElementById("message").textContent = "";
+	document.getElementById("betControls").style.display = "none";
+	document.getElementById("gameControls").style.display = "flex";
+	gameActive = true;
+
+	if (calculateScore(playerHand) === 21) {
+		stand();
+	}
+}
+
+function hit() {
+	if (!gameActive) return;
+	playerHand.push(deck.pop());
+	displayCards(playerHand, "playerCards");
+	updateScores(true);
+
+	if (calculateScore(playerHand) > 21) {
+		endGame("Bust! You lose.");
+	} else if (calculateScore(playerHand) === 21) {
+		stand();
+	}
+}
+
+function stand() {
+	gameActive = false;
+	displayCards(dealerHand, "dealerCards");
+	updateScores(false);
+
+	while (calculateScore(dealerHand) < 17) {
+		dealerHand.push(deck.pop());
+		displayCards(dealerHand, "dealerCards");
+		updateScores(false);
+	}
+
+	const playerScore = calculateScore(playerHand);
+	const dealerScore = calculateScore(dealerHand);
+
+	if (dealerScore > 21) {
+		endGame("Dealer busts! You win!");
+		chips += currentBet * 2;
+		wins++;
+	} else if (playerScore > dealerScore) {
+		endGame("You win!");
+		chips += currentBet * 2;
+		wins++;
+	} else if (playerScore === dealerScore) {
+		endGame("Push! Bet returned.");
+		chips += currentBet;
+	} else {
+		endGame("Dealer wins!");
+	}
+	updateStats();
+}
+
+function endGame(message) {
+	document.getElementById("message").textContent = message;
+	gameActive = false;
+}
+
+function newRound() {
+	document.getElementById("betControls").style.display = "flex";
+	document.getElementById("gameControls").style.display = "none";
+	document.getElementById("message").textContent = "";
+	playerHand = [];
+	dealerHand = [];
+	displayCards([], "playerCards");
+	displayCards([], "dealerCards");
+	document.getElementById("playerScore").textContent = "0";
+	document.getElementById("dealerScore").textContent = "0";
+}
+
+function updateStats() {
+	document.getElementById("chips").textContent = chips;
+	document.getElementById("currentBet").textContent = currentBet;
+	document.getElementById("wins").textContent = wins;
+}
+</script>
+</body>
+</html>
+										' style="width:100%; height:700px; border:none; border-radius:10px;"></iframe>
+									</div>
+								</div>
+
+								<div class="code-example-card">
+									<h3>Roulette Wheel Game</h3>
+									<p>Animated roulette wheel with betting on numbers, colors, odds/evens, and realistic spinning animation.</p>
+									<div class="iframe-container">
+										<iframe srcdoc='
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+	font-family: Arial, sans-serif;
+	background: linear-gradient(135deg, #0f766e 0%, #134e4a 100%);
+	padding: 20px;
+	min-height: 100vh;
+}
+.game-container {
+	max-width: 900px;
+	margin: 0 auto;
+	background: #1e293b;
+	border-radius: 20px;
+	padding: 30px;
+	box-shadow: 0 20px 60px rgba(0,0,0,0.5);
+}
+h2 {
+	color: #fbbf24;
+	text-align: center;
+	margin-bottom: 20px;
+}
+.chips-display {
+	text-align: center;
+	font-size: 1.5em;
+	color: #fbbf24;
+	margin-bottom: 20px;
+}
+.wheel-container {
+	position: relative;
+	width: 300px;
+	height: 300px;
+	margin: 30px auto;
+}
+.wheel {
+	width: 100%;
+	height: 100%;
+	border-radius: 50%;
+	border: 10px solid #fbbf24;
+	background: conic-gradient(
+		#dc2626 0deg 11.25deg,
+		#000 11.25deg 22.5deg,
+		#dc2626 22.5deg 33.75deg,
+		#000 33.75deg 45deg,
+		#dc2626 45deg 56.25deg,
+		#000 56.25deg 67.5deg,
+		#dc2626 67.5deg 78.75deg,
+		#000 78.75deg 90deg,
+		#dc2626 90deg 101.25deg,
+		#000 101.25deg 112.5deg,
+		#dc2626 112.5deg 123.75deg,
+		#000 123.75deg 135deg,
+		#dc2626 135deg 146.25deg,
+		#000 146.25deg 157.5deg,
+		#dc2626 157.5deg 168.75deg,
+		#000 168.75deg 180deg,
+		#dc2626 180deg 191.25deg,
+		#000 191.25deg 202.5deg,
+		#dc2626 202.5deg 213.75deg,
+		#000 213.75deg 225deg,
+		#dc2626 225deg 236.25deg,
+		#000 236.25deg 247.5deg,
+		#dc2626 247.5deg 258.75deg,
+		#000 258.75deg 270deg,
+		#dc2626 270deg 281.25deg,
+		#000 281.25deg 292.5deg,
+		#dc2626 292.5deg 303.75deg,
+		#000 303.75deg 315deg,
+		#dc2626 315deg 326.25deg,
+		#000 326.25deg 337.5deg,
+		#dc2626 337.5deg 348.75deg,
+		#000 348.75deg 360deg
+	);
+	position: relative;
+	transition: transform 3s cubic-bezier(0.17, 0.67, 0.12, 0.99);
+	box-shadow: 0 0 30px rgba(251,191,36,0.5);
+}
+.wheel-center {
+	position: absolute;
+	top: 50%;
+	left: 50%;
+	transform: translate(-50%, -50%);
+	width: 60px;
+	height: 60px;
+	background: #fbbf24;
+	border-radius: 50%;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	font-weight: bold;
+	font-size: 1.5em;
+	box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+}
+.betting-board {
+	display: grid;
+	grid-template-columns: repeat(6, 1fr);
+	gap: 5px;
+	margin: 30px 0;
+}
+.bet-option {
+	padding: 15px;
+	background: rgba(251,191,36,0.1);
+	border: 2px solid #fbbf24;
+	border-radius: 8px;
+	cursor: pointer;
+	transition: all 0.3s ease;
+	text-align: center;
+	color: #fff;
+	font-weight: bold;
+}
+.bet-option:hover {
+	background: rgba(251,191,36,0.3);
+	transform: scale(1.05);
+}
+.bet-option.selected {
+	background: #fbbf24;
+	color: #000;
+}
+.bet-option.red { background: rgba(220,38,38,0.3); }
+.bet-option.black { background: rgba(0,0,0,0.5); }
+.controls {
+	display: flex;
+	justify-content: center;
+	gap: 15px;
+	flex-wrap: wrap;
+	margin: 20px 0;
+}
+button {
+	padding: 15px 30px;
+	font-size: 1.1em;
+	font-weight: bold;
+	border: none;
+	border-radius: 10px;
+	cursor: pointer;
+	background: linear-gradient(135deg, #fbbf24, #f59e0b);
+	color: #000;
+	transition: all 0.3s ease;
+}
+button:hover:not(:disabled) {
+	transform: translateY(-3px);
+	box-shadow: 0 8px 20px rgba(251,191,36,0.5);
+}
+button:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+.bet-input {
+	padding: 15px;
+	font-size: 1.1em;
+	border: 2px solid #fbbf24;
+	border-radius: 10px;
+	width: 120px;
+	text-align: center;
+}
+.result {
+	text-align: center;
+	font-size: 1.5em;
+	font-weight: bold;
+	margin: 20px 0;
+	color: #fbbf24;
+	min-height: 40px;
+}
+</style>
+</head>
+<body>
+<div class="game-container">
+	<h2>🎯 Roulette</h2>
+	<div class="chips-display">Chips: <span id="chips">1000</span></div>
+
+	<div class="wheel-container">
+		<div class="wheel" id="wheel">
+			<div class="wheel-center" id="wheelNumber">0</div>
+		</div>
+	</div>
+
+	<div class="result" id="result"></div>
+
+	<h3 style="color:#fbbf24; text-align:center; margin:20px 0;">Place Your Bets</h3>
+	<div class="betting-board">
+		<div class="bet-option red" onclick="selectBet(`red`)">Red</div>
+		<div class="bet-option black" onclick="selectBet(`black`)">Black</div>
+		<div class="bet-option" onclick="selectBet(`odd`)">Odd</div>
+		<div class="bet-option" onclick="selectBet(`even`)">Even</div>
+		<div class="bet-option" onclick="selectBet(`low`)">1-18</div>
+		<div class="bet-option" onclick="selectBet(`high`)">19-36</div>
+	</div>
+
+	<div class="controls">
+		<input type="number" class="bet-input" id="betAmount" value="50" min="10">
+		<button onclick="spin()" id="spinBtn">Spin Wheel</button>
+	</div>
+</div>
+<script>
+const redNumbers = [1,3,5,7,9,12,14,16,18,19,21,23,25,27,30,32,34,36];
+let chips = 1000;
+let selectedBet = null;
+let spinning = false;
+
+function selectBet(bet) {
+	document.querySelectorAll(".bet-option").forEach(el => el.classList.remove("selected"));
+	event.target.classList.add("selected");
+	selectedBet = bet;
+}
+
+function spin() {
+	if (spinning || !selectedBet) {
+		document.getElementById("result").textContent = selectedBet ? "" : "Select a bet first!";
+		return;
+	}
+
+	const bet = parseInt(document.getElementById("betAmount").value);
+	if (bet > chips) {
+		document.getElementById("result").textContent = "Not enough chips!";
+		return;
+	}
+
+	spinning = true;
+	chips -= bet;
+	updateChips();
+	document.getElementById("spinBtn").disabled = true;
+	document.getElementById("result").textContent = "Spinning...";
+
+	const wheel = document.getElementById("wheel");
+	const winningNumber = Math.floor(Math.random() * 37);
+	const rotations = 5 + Math.random() * 3;
+	const degrees = rotations * 360 + (winningNumber * (360 / 37));
+
+	wheel.style.transform = `rotate(${degrees}deg)`;
+	document.getElementById("wheelNumber").textContent = winningNumber;
+
+	setTimeout(() => {
+		checkWin(winningNumber, bet);
+		spinning = false;
+		document.getElementById("spinBtn").disabled = false;
+	}, 3000);
+}
+
+function checkWin(number, bet) {
+	const isRed = redNumbers.includes(number);
+	const isBlack = !isRed && number !== 0;
+	const isOdd = number % 2 !== 0 && number !== 0;
+	const isEven = number % 2 === 0 && number !== 0;
+	const isLow = number >= 1 && number <= 18;
+	const isHigh = number >= 19 && number <= 36;
+
+	let won = false;
+	if (selectedBet === "red" && isRed) won = true;
+	if (selectedBet === "black" && isBlack) won = true;
+	if (selectedBet === "odd" && isOdd) won = true;
+	if (selectedBet === "even" && isEven) won = true;
+	if (selectedBet === "low" && isLow) won = true;
+	if (selectedBet === "high" && isHigh) won = true;
+
+	const resultEl = document.getElementById("result");
+	if (won) {
+		const winAmount = bet * 2;
+		chips += winAmount;
+		resultEl.textContent = `🎉 Number ${number}! You won ${winAmount} chips!`;
+		resultEl.style.color = "#4ade80";
+	} else {
+		resultEl.textContent = `Number ${number}. Better luck next time!`;
+		resultEl.style.color = "#f87171";
+	}
+
+	updateChips();
+	selectedBet = null;
+	document.querySelectorAll(".bet-option").forEach(el => el.classList.remove("selected"));
+}
+
+function updateChips() {
+	document.getElementById("chips").textContent = chips;
+}
+</script>
+</body>
+</html>
+										' style="width:100%; height:800px; border:none; border-radius:10px;"></iframe>
+									</div>
+								</div>
+							</div>
+
+							<!-- Python Examples -->
+							<div class="code-section" data-category="python">
+								<h2><i class="fab fa-python"></i> Python Examples</h2>
+
+								<div class="code-example-card">
+									<h3>Decorator for Function Timing</h3>
+									<p>A chat UI using gemini's free api key.</p>
+									<div class="code-wrapper">
+										<button class="copy-btn" onclick="copyCode(this)">Copy</button>
+										<pre><code class="language-python">import tkinter as tk
+import threading
+from datetime import datetime
+import random  # (still used elsewhere – kept for completeness)
+
+import markdown
+from tkinterweb import HtmlFrame
+import google.generativeai as genai
+
+from api.gemini import GEMINI_API_KEY
+
+
+# --------------------------------------------------------------------------- #
+#  Gemini / Google-Generative-AI set-up                                       #
+# --------------------------------------------------------------------------- #
+# One global configuration call is enough for the whole application.
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Create a model instance once and keep a single chat session so the model can
+# remember the full conversation history.
+MODEL_NAME = "gemini-2.5-flash"                 # adjust to whichever model you prefer
+_GEN_MODEL = genai.GenerativeModel(MODEL_NAME)
+_CHAT_SESSION = _GEN_MODEL.start_chat(history=[])  # remembers all messages
+
+
+class TerminalChat:
+    # --------------------------- UI helpers -------------------------------- #
+    def _scroll_to_bottom(self):
+        """
+        Ensure the scrollbar always sits at the bottom after updating the HTML
+        (works for both HtmlFrame < 5.0 and >= 5.0).
+        """
+        try:
+            self.chat_display.text.yview_moveto(1.0)
+        except AttributeError:
+            try:
+                self.chat_display.yview_moveto(1.0)
+            except Exception:
+                pass
+
+    # -----------------------------  init  ---------------------------------- #
+    def __init__(self, root: tk.Tk):
+        self.root = root
+        self.root.title("Gemini AI Terminal Chat")
+        self.root.configure(bg="black")
+
+        # Optional window icon
+        try:
+            self.root.iconphoto(False, tk.PhotoImage(file="aiicon.png"))
+        except tk.TclError:
+            pass  # icon not found – fail silently
+
+        # Chat content for the HtmlFrame (HTML strings)
+        self.chat_content: list[str] = []
+        self.is_thinking: bool = False
+
+        # ------------------------------------------------------------------- #
+        # Styling (pure HTML/CSS – injected into each render)                 #
+        # ------------------------------------------------------------------- #
+        self.style = """
+        <style>
+            ::-webkit-scrollbar { width: 8px; background: #000000; }
+            ::-webkit-scrollbar-track { background: #001100; border: 1px solid #004400; }
+            ::-webkit-scrollbar-thumb { background: #008800; border: 1px solid #00ff00; border-radius: 4px; }
+            ::-webkit-scrollbar-thumb:hover { background: #00aa00; }
+            ::-webkit-scrollbar-corner { background: #000000; }
+
+            body {
+                background-color: black;
+                color: #00ff00;
+                font-family: 'Courier New', monospace;
+                padding: 10px;
+            }
+
+            code {
+                background-color: #001100;
+                border: 1px solid #00ff00;
+                padding: 2px 5px;
+                border-radius: 3px;
+            }
+
+            pre {
+                background-color: #001100;
+                border: 1px solid #00ff00;
+                padding: 10px;
+                border-radius: 5px;
+            }
+        </style>
+        """
+
+        # --------------------------- Layout -------------------------------- #
+        self.chat_frame = tk.Frame(root, bg="black")
+        self.chat_frame.pack(expand=True, fill="both", padx=10, pady=5)
+
+        self.chat_display = HtmlFrame(self.chat_frame)
+        self.chat_display.pack(expand=True, fill="both")
+
+        # --------------------------- Input area ---------------------------- #
+        self.input_frame = tk.Frame(root, bg="black")
+        self.input_frame.pack(fill="x", padx=10, pady=5)
+
+        self.prompt_label = tk.Label(
+            self.input_frame,
+            text=">>",
+            bg="black",
+            fg="#00ff00",
+            font=("Courier", 12),
+        )
+        self.prompt_label.pack(side="left")
+
+        self.input_field = tk.Entry(
+            self.input_frame,
+            bg="black",
+            fg="#00ff00",
+            insertbackground="#00ff00",
+            font=("Courier", 12),
+            bd=0,
+            highlightthickness=1,
+            highlightcolor="#00ff00",
+            highlightbackground="#004400",
+        )
+        self.input_field.pack(side="left", fill="x", expand=True)
+        self.input_field.bind("<Return>", self.send_message)
+
+        # First render
+        self.display_welcome()
+
+    # ------------------------- Rendering helpers --------------------------- #
+    def display_welcome(self):
+        welcome_text = """
+        <div style="text-align: center; margin: 20px;">
+        <pre style="display: inline-block; text-align: left;">
+╔════════════════════════════════════════╗
+║        Welcome to Gemini AI Chat       ║
+║    Type your message and press Enter   ║
+╚════════════════════════════════════════╝
+        </pre>
+        </div>
+        """
+        self.chat_content.append(welcome_text)
+        self.update_chat_display()
+
+    def update_chat_display(self):
+        html_content = f"""
+        <html>
+        <head>{self.style}</head>
+        <body>
+        {''.join(self.chat_content)}
+        </body>
+        </html>
+        """
+        self.chat_display.load_html(html_content)
+        # Scroll once Tk has finished rendering
+        self.root.after_idle(self._scroll_to_bottom)
+
+    # --------------------------  Event handlers --------------------------- #
+    def send_message(self, event=None):
+        user_input: str = self.input_field.get().strip()
+        if not user_input:
+            return
+
+        timestamp = datetime.now().strftime("%H:%M:%S")
+        user_message_md = markdown.markdown(user_input)
+        user_html = f"""
+        <div style="margin: 10px 0;">
+            <span style="color: #888;">[{timestamp}]</span>
+            <span style="color: #00ff00;">You:</span><br>
+            <div style="margin-left: 20px;">{user_message_md}</div>
+        </div>
+        """
+        self.chat_content.append(user_html)
+
+        # Show "thinking…" placeholder
+        self.is_thinking = True
+        thinking_html = """
+        <div id="thinking" style="margin: 10px 0;">
+            <span style="color: #00ff00;">Gemini is thinking...</span>
+        </div>
+        """
+        self.chat_content.append(thinking_html)
+        self.update_chat_display()
+
+        # Clear input field
+        self.input_field.delete(0, "end")
+
+        # Fire AI call in background
+        threading.Thread(
+            target=self.get_ai_response,
+            args=(user_input,),
+            daemon=True,
+        ).start()
+
+    def get_ai_response(self, user_input: str):
+        """
+        Handles interaction with Gemini/Generative-AI.  Because we re-use the
+        global _CHAT_SESSION, the model automatically receives the *entire*
+        conversation context – giving it the ability to reference earlier
+        messages without any extra work.
+        """
+        try:
+            # Feed the user message to the chat session.
+            response = _CHAT_SESSION.send_message(user_input)
+
+            # Remove "thinking" placeholder if necessary
+            if self.is_thinking:
+                self.chat_content.pop()  # remove last added element
+                self.is_thinking = False
+
+            timestamp = datetime.now().strftime("%H:%M:%S")
+            ai_message_md = markdown.markdown(response.text)
+            ai_html = f"""
+            <div style="margin: 10px 0;">
+                <span style="color: #888;">[{timestamp}]</span>
+                <span style="color: #00ff00;">Gemini:</span><br>
+                <div style="margin-left: 20px;">{ai_message_md}</div>
+            </div>
+            """
+            self.chat_content.append(ai_html)
+            self.update_chat_display()
+        except Exception as e:
+            # Remove "thinking" placeholder if it exists
+            if self.is_thinking:
+                self.chat_content.pop()
+                self.is_thinking = False
+
+            error_html = f"""
+            <div style="margin: 10px 0; color: #ff0000;">
+                Error: {str(e)}
+            </div>
+            """
+            self.chat_content.append(error_html)
+            self.update_chat_display()
+
+
+# --------------------------------------------------------------------------- #
+#  Application entry-point                                                   #
+# --------------------------------------------------------------------------- #
+if __name__ == "__main__":
+    root = tk.Tk()
+    root.geometry("860x645")
+    app = TerminalChat(root)
+    root.mainloop()
+</code></pre>
+									</div>
+								</div>
+
+								<div class="code-example-card">
+									<h3>Context Manager for Database Connections</h3>
+									<p>Blooket code brute forcer, truly one of my greater programs</p>
+									<div class="code-wrapper">
+										<button class="copy-btn" onclick="copyCode(this)">Copy</button>
+										<pre><code class="language-python">import random
+import time
+from selenium import webdriver
+from selenium.webdriver.common.by import By
+from selenium.webdriver.common.keys import Keys
+import threading
+
+# Control number of instances here
+NUM_INSTANCES = 4
+
+def generate_random_id():
+    return ''.join(random.choices('0123456789', k=7))
+
+def search_game(thread_id):
+    driver = webdriver.Chrome()
+
+    while True:
+        game_id = generate_random_id()
+        nickname = f"jack{thread_id}"
+        url = f"https://play.blooket.com/play?id={game_id}"
+
+        driver.get(url)
+        time.sleep(1.5)
+
+        try:
+            immediate_error = driver.find_element(By.CSS_SELECTOR, 'div.CustomErrorToast_errorToast__fF9HK')
+            if "We couldn't find a game with that ID" in immediate_error.text:
+                print(f"Thread {thread_id}: No game found for ID: {game_id}. Trying again...")
+                continue
+        except Exception:
+            pass
+
+        try:
+            nickname_input = driver.find_element(By.CSS_SELECTOR, 'input._nameInput_1lycq_85')
+            nickname_input.clear()
+            nickname_input.send_keys(nickname)
+            nickname_input.send_keys(Keys.RETURN)
+
+            time.sleep(1.5)
+
+            try:
+                error_message = driver.find_element(By.CSS_SELECTOR, 'div._errorBar_1lycq_148')
+                if "no game" in error_message.text or "trouble connecting" in error_message.text:
+                    print(f"Thread {thread_id}: No game found for ID: {game_id}. Trying again...")
+                else:
+                    print(f"Thread {thread_id}: Game found with ID: {game_id} and Nickname: {nickname}")
+                    while True:
+                        time.sleep(1)
+            except Exception as e:
+                print(f"Thread {thread_id}: Error checking for game: {e}. Trying again...")
+        except Exception as e:
+            print(f"Thread {thread_id}: Error finding nickname input: {e}. Trying again...")
+
+def main():
+    threads = []
+
+    # Create threads based on NUM_INSTANCES
+    for i in range(NUM_INSTANCES):
+        thread = threading.Thread(target=search_game, args=(i+1,))
+        threads.append(thread)
+        thread.start()
+
+    # Wait for all threads
+    for thread in threads:
+        thread.join()
+
+if __name__ == "__main__":
+    main()
+
+</code></pre>
+									</div>
+								</div>
+							</div>
+
+							<!-- React Examples -->
+							<div class="code-section" data-category="react">
+								<h2><i class="fab fa-react"></i> React Examples</h2>
+
+								<div class="code-example-card">
+									<h3>Custom useAsync Hook</h3>
+									<p>The website I did UI / UX for</p>
+									<div class="code-wrapper">
+										<button class="copy-btn" onclick="copyCode(this)">Copy</button>
+										<pre><code class="language-javascript">https://www.mythicfootball.com
+// It used react
+</code></pre>
+									</div>
+								</div>
+							</div>
+								<div class="code-example-card">
+									<h3>Async Error Handler Wrapper</h3>
+									<p>Original Infinite reach hack for Minecraft Updated by me</p>
+									<div class="code-wrapper">
+										<button class="copy-btn" onclick="copyCode(this)">Copy</button>
+										<pre><code class="language-javascript">package net.jackson.hacks;
+
+import net.jackson.mixin.ClientPlayerInteractionManagerMixin;
+import net.jackson.mixin.MinecraftClientMixin;
+import net.minecraft.entity.Entity;
+import net.minecraft.network.packet.c2s.play.HandSwingC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerInteractEntityC2SPacket;
+import net.minecraft.network.packet.c2s.play.PlayerMoveC2SPacket;
+import net.minecraft.util.math.MathHelper;
+import net.minecraft.util.math.Vec3d;
+import org.lwjgl.glfw.GLFW;
+
+import static net.jackson.client.ClientEntrypoint.*;
+import static net.jackson.helper.Utils.insertToCenter;
+
+public class Reach extends ToggledHack {
+    /**
+     * Hit enitities from far away
+     * @see MinecraftClientMixin
+     * @see ClientPlayerInteractionManagerMixin
+     */
+    public Reach() {
+        super("Reach", GLFW.GLFW_KEY_RIGHT_BRACKET);
+    }
+
+    @Override
+    public void onEnable() {
+        clipReachHack.enabled = false;  // Disable clip reach
+    }
+
+    public void hitEntity(Entity target) {
+        if (client.player == null) return;
+
+        if (packetQueue.size() > 0) {
+            return;  // Already running (may take multiple ticks)
+        }
+
+        Vec3d pos = client.player.getPos();
+        Vec3d targetPos = target.getPos().subtract(  // Subtract a bit from the end
+                target.getPos().subtract(pos).normalize().multiply(2)
+        );
+        // If player is still too far away, move closer
+        while (target.squaredDistanceTo(pos.add(0, client.player.getStandingEyeHeight(), 0)) >= MathHelper.square(6.0)) {
+            Vec3d movement = targetPos.subtract(pos);
+
+            boolean lastPacket = false;
+            if (movement.lengthSquared() >= 100) {  // Length squared is max 100 (otherwise "moved too quickly")
+                // Normalize to length 10
+                movement = movement.normalize().multiply(9.9);
+            } else {  // If short enough, this is last packet
+                lastPacket = true;
+            }
+            pos = pos.add(movement);
+
+            // Add forward and backwards packets
+            insertToCenter(packetQueue, new PlayerMoveC2SPacket.PositionAndOnGround(pos.x, pos.y, pos.z, true, false));
+            if (!lastPacket) {  // If not the last packet, add a backwards packet (only need one at the sheep)
+                insertToCenter(packetQueue, new PlayerMoveC2SPacket.PositionAndOnGround(pos.x, pos.y, pos.z, true, false));
+            }
+        }
+        // Add hit packet in the middle and original position at the end
+        insertToCenter(packetQueue, PlayerInteractEntityC2SPacket.attack(target, client.player.isSneaking()));
+        packetQueue.add(new PlayerMoveC2SPacket.PositionAndOnGround(client.player.getX(), client.player.getY(), client.player.getZ(), true, false));
+        packetQueue.add(new HandSwingC2SPacket(client.player.getActiveHand()));  // Serverside animation
+        client.player.resetLastAttackedTicks();  // Reset attack cooldown
+    }
+}
+</code></pre>
+									</div>
+								</div>
+							</div>
+
+							<!-- Java Examples -->
+							<div class="code-section" data-category="java">
+								<h2><i class="fas fa-brain"></i> Java Examples</h2>
+
+								<div class="code-example-card">
+									<h3>Who doesn't love math! Pre-existing project re-made to be open source since the original owner had it closed.</h3>
+                                    <p>Rendering pixels in a 3D space for a Minecraft mod.</p>
+									<div class="code-wrapper">
+										<button class="copy-btn" onclick="copyCode(this)">Copy</button>
+										<pre><code class="language-javascript">package eightsidedsquare.illegal.client;
+
+import com.mojang.blaze3d.systems.RenderSystem;
+import eightsidedsquare.illegal.common.entity.DrawingBlockEntity;
+import java.util.Iterator;
+import net.fabricmc.api.EnvType;
+import net.fabricmc.api.Environment;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.client.render.*;
+import net.minecraft.client.render.block.entity.BlockEntityRenderer;
+import net.minecraft.client.render.block.entity.BlockEntityRendererFactory;
+import net.minecraft.client.util.math.MatrixStack;
+import net.minecraft.entity.Entity;
+import net.minecraft.entity.player.PlayerEntity;
+import net.minecraft.util.math.Direction;
+import net.minecraft.util.math.Vec3d;
+import net.minecraft.util.math.Vec3f;
+import net.minecraft.world.World;
+
+public class DrawingBlockEntityRenderer implements BlockEntityRenderer<DrawingBlockEntity> {
+    public DrawingBlockEntityRenderer(BlockEntityRendererFactory.Context ctx) {
+    }
+
+    @Environment(EnvType.CLIENT)
+    public void render(DrawingBlockEntity entity, float tickDelta, MatrixStack matrices, VertexConsumerProvider provider, int light, int overlay) {
+        World world = entity.getWorld();
+        if (world != null) {
+            MatrixStack matrixStack = RenderSystem.getModelViewStack();
+            matrixStack.push();
+            matrixStack.multiplyPositionMatrix(matrices.peek().getPositionMatrix());
+            RenderSystem.applyModelViewMatrix();
+            RenderSystem.setShader(GameRenderer::getPositionColorShader);
+            RenderSystem.setShaderColor(1.0F, 1.0F, 1.0F, 1.0F);
+            RenderSystem.enableDepthTest();
+            RenderSystem.disableCull();
+            RenderSystem.depthMask(true);
+            Tessellator tessellator = Tessellator.getInstance();
+            BufferBuilder bufferBuilder = tessellator.getBuffer();
+            bufferBuilder.begin(VertexFormat.DrawMode.LINES, VertexFormats.POSITION_COLOR_LIGHT);
+            matrices.loadIdentity();
+            float d = 0.0F;
+            Entity var13 = MinecraftClient.getInstance().getCameraEntity();
+            if (var13 instanceof PlayerEntity) {
+                PlayerEntity p = (PlayerEntity)var13;
+                d = (float)p.getPos().distanceTo(new Vec3d((double)entity.getPos().getX() + 0.5, (double)entity.getPos().getY() + 0.5, (double)entity.getPos().getZ() + 0.5));
+            }
+
+            d /= 256.0F;
+            Iterator var15 = entity.getPixelData().iterator();
+
+            while(var15.hasNext()) {
+                long pixelData = (Long)var15.next();
+                this.renderPixel(pixelData, bufferBuilder, light, d);
+            }
+
+            tessellator.draw();
+            matrixStack.pop();
+            RenderSystem.applyModelViewMatrix();
+            RenderSystem.depthMask(true);
+            RenderSystem.disableBlend();
+            RenderSystem.enableCull();
+        }
+    }
+
+    public void renderPixel(long pixelData, BufferBuilder bufferBuilder, int light, float distance) {
+        Vec3f[] vec3fs = new Vec3f[]{new Vec3f(-1.0F, distance, -1.0F), new Vec3f(-1.0F, distance, 1.0F), new Vec3f(1.0F, distance, 1.0F), new Vec3f(1.0F, distance, -1.0F)};
+        Direction d = DrawingBlockEntity.getDirection(pixelData);
+
+        for(int k = 0; k < 4; ++k) {
+            Vec3f vec3f = vec3fs[k];
+            vec3f.scale(0.5F);
+            switch (d) {
+                case NORTH:
+                case EAST:
+                    vec3f.add(-0.5F, 0.0F, -0.5F);
+                    break;
+                case SOUTH:
+                case WEST:
+                    vec3f.add(0.5F, 0.0F, -0.5F);
+                    break;
+                case UP:
+                    vec3f.add(0.5F, 0.0F, 0.5F);
+                    break;
+                default:
+                    vec3f.add(0.5F, 0.0F, -0.5F);
+            }
+
+            vec3f.rotate(d.getRotationQuaternion());
+            vec3f.add((float)DrawingBlockEntity.getX(pixelData), (float)DrawingBlockEntity.getY(pixelData), (float)DrawingBlockEntity.getZ(pixelData));
+            vec3f.scale(0.0625F);
+            vec3f.add((float)(-d.getOffsetX()), (float)(-d.getOffsetY()), (float)(-d.getOffsetZ()));
+        }
+
+        float r = DrawingBlockEntity.getRed(pixelData);
+        float g = DrawingBlockEntity.getGreen(pixelData);
+        float b = DrawingBlockEntity.getBlue(pixelData);
+        float a = 1.0F;
+        int uv = OverlayTexture.DEFAULT_UV;
+        bufferBuilder.vertex((double)vec3fs[0].getX(), (double)vec3fs[0].getY(), (double)vec3fs[0].getZ()).color(r, g, b, a).light(light).texture(0.0F, 0.0F).normal(0.0F, 1.0F, 0.0F).overlay(uv).next();
+        bufferBuilder.vertex((double)vec3fs[1].getX(), (double)vec3fs[1].getY(), (double)vec3fs[1].getZ()).color(r, g, b, a).light(light).texture(0.0F, 0.0F).normal(0.0F, 1.0F, 0.0F).overlay(uv).next();
+        bufferBuilder.vertex((double)vec3fs[2].getX(), (double)vec3fs[2].getY(), (double)vec3fs[2].getZ()).color(r, g, b, a).light(light).texture(0.0F, 0.0F).normal(0.0F, 1.0F, 0.0F).overlay(uv).next();
+        bufferBuilder.vertex((double)vec3fs[3].getX(), (double)vec3fs[3].getY(), (double)vec3fs[3].getZ()).color(r, g, b, a).light(light).texture(0.0F, 0.0F).normal(0.0F, 1.0F, 0.0F).overlay(uv).next();
+    }
+
+    public int getRenderDistance() {
+        return 128;
+    }
+}
+</code></pre>
+									</div>
+								</div>
+
+							<!-- GitHub Integration Section -->
+							<section class="github-section">
+								<h2><i class="fab fa-github"></i> GitHub Contributions</h2>
+								<p>Check out my open-source contributions and repositories:</p>
+								<div class="github-stats">
+									<img src="https://github-readme-stats.vercel.app/api?username=UnicornMaster-dev&theme=dracula&show_icons=true&hide_border=true&count_private=true" alt="UnicornMaster-dev's Stats" />
+									<img src="https://github-readme-streak-stats.herokuapp.com/?user=UnicornMaster-dev&theme=dracula&hide_border=true" alt="UnicornMaster-dev's Streak" />
+									<img src="https://github-readme-stats.vercel.app/api/top-langs/?username=UnicornMaster-dev&theme=dracula&show_icons=true&hide_border=true&layout=compact" alt="UnicornMaster-dev's Top Languages" />
+								</div>
+								<a href="https://github.com/UnicornMaster-dev" class="button primary large" target="_blank">
+									<i class="fab fa-github"></i> View My GitHub Profile
+								</a>
+							</section>
+
+						</section>
+
+					</div>
+
+                <!-- Footer -->
+                                    <footer id="footer">
+                                        <section>
+                                        </section>
+                <section class="split contact">
+                    <section class="alt">
+                        <h3>Location</h3>
+                        <p><br />
+                            United States of America</p>
+                    </section>
+                    <section>
+                        <h3>Email</h3>
+                        <p><a href="#">Coming Soon</a></p>
+                    </section>
+                    <section>
+                        <h3>Social</h3>
+                        <ul class="icons alt">
+                            <li>
+                                <a href="https://modrinth.com/user/UnicornMaster" class="icon brands alt">
+                                    <img src="assets/modrinth.png" alt="Modrinth" style="width: 45px; height: 45px;">
+                                    <span class="label">Modrinth</span>
+                                </a>
+                            </li>
+
+                            <li><a href="https://github.com/UnicornMaster-dev" class="icon brands alt fa-github"><span class="label">GitHub</span></a></li>
+                        </ul>
+                    </section>
+                </section>
+                </footer>
+
+                <!-- Copyright -->
+                <div id="copyright">
+                    <ul><li>&copy; UnicornMaster-Dev</li><li>Portfolio 2025</li></ul>
+                </div>
+
+            </div>
+			</div>
+
+		<!-- Scripts -->
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/prism.min.js"></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-javascript.min.js"></script>
+			<script src="https://cdnjs.cloudflare.com/ajax/libs/prism/1.29.0/components/prism-python.min.js"></script>
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/jquery.scrollex.min.js"></script>
+			<script src="assets/js/jquery.scrolly.min.js"></script>
+			<script src="assets/js/browser.min.js"></script>
+			<script src="assets/js/breakpoints.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<script src="assets/js/main.js"></script>
+			<script src="assets/js/portfolio.js"></script>
+
+	</body>
+</html>
