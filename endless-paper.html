@@ -1,0 +1,1175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Zoom Vector Drawing Canvas</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background: #1a1a1a;
+            font-family: monospace;
+            color: white;
+        }
+        
+        canvas {
+            cursor: crosshair;
+            background: #0a0a0a;
+        }
+        
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(0,0,0,0.9);
+            padding: 15px;
+            border-radius: 8px;
+            z-index: 100;
+            max-width: 250px;
+        }
+        
+        .control-group {
+            margin-bottom: 10px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #333;
+        }
+        
+        .control-group:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+        }
+        
+        .control-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px 0;
+        }
+        
+        .info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            padding: 10px;
+            border-radius: 5px;
+            font-size: 12px;
+        }
+        
+        .fps-counter {
+            position: absolute;
+            bottom: 10px;
+            right: 10px;
+            background: rgba(0,0,0,0.9);
+            padding: 8px;
+            border-radius: 5px;
+            font-size: 14px;
+            color: #0f0;
+        }
+        
+        button {
+            margin: 2px;
+            padding: 6px 12px;
+            background: #333;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 11px;
+        }
+        
+        button:hover {
+            background: #555;
+        }
+        
+        button:disabled {
+            background: #222;
+            color: #666;
+            cursor: not-allowed;
+        }
+        
+        button.active {
+            background: #0066cc;
+        }
+        
+        input[type="color"] {
+            width: 40px;
+            height: 30px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+        
+        input[type="range"] {
+            flex: 1;
+        }
+        
+        input[type="file"] {
+            font-size: 10px;
+            color: white;
+        }
+        
+        label {
+            font-size: 11px;
+            color: #ccc;
+        }
+        
+        .tool-buttons {
+            display: flex;
+            gap: 4px;
+        }
+        
+        .export-section {
+            font-size: 10px;
+        }
+        
+        .cursor-draw { cursor: crosshair; }
+        .cursor-erase { cursor: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 20 20"><circle cx="10" cy="10" r="8" fill="none" stroke="red" stroke-width="2"/><path d="M6 6l8 8M14 6l-8 8" stroke="red" stroke-width="2"/></svg>') 10 10, crosshair; }
+        .cursor-pan { cursor: grab; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <div class="control-group">
+            <button onclick="goBack()" style="width: 100%; padding: 10px; background: #444; font-size: 12px;">← Go Back</button>
+        </div>
+        
+        <div class="control-group">
+            <div>🎨 <strong>Tools</strong></div>
+            <div class="tool-buttons">
+                <button id="drawTool" class="active" onclick="setTool('draw')">✏️ Draw</button>
+                <button id="eraseTool" onclick="setTool('erase')">🧽 Erase</button>
+                <button id="panTool" onclick="setTool('pan')">✋ Pan</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div>🎨 <strong>Color</strong></div>
+            <div class="control-row">
+                <input type="color" id="colorPicker" value="#ff6b6b">
+                <button onclick="toggleRandomColor()" id="randomColorBtn">🎲 Random</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div>✏️ <strong>Brush Size</strong></div>
+            <div class="control-row">
+                <input type="range" id="brushSize" min="0.5" max="10" step="0.5" value="2">
+                <span id="brushSizeValue">2px</span>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div>⚡ <strong>Actions</strong></div>
+            <div class="control-row">
+                <button onclick="undo()" id="undoBtn">↶ Undo</button>
+                <button onclick="redo()" id="redoBtn">↷ Redo</button>
+            </div>
+            <div class="control-row">
+                <button onclick="clearCanvas()">🗑️ Clear</button>
+                <button onclick="resetView()">🎯 Reset View</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div>💾 <strong>File</strong></div>
+            <div class="control-row">
+                <button onclick="saveDrawing()">💾 Save File</button>
+                <input type="file" id="loadFile" accept=".json" onchange="loadDrawing()" style="display:none">
+                <button onclick="document.getElementById('loadFile').click()">📁 Load File</button>
+            </div>
+            <div class="control-row">
+                <button onclick="clearStorage()" style="background: #660000;">🗑️ Clear Storage</button>
+            </div>
+        </div>
+        
+        <div class="control-group export-section">
+            <div>📤 <strong>Export</strong></div>
+            <div class="control-row">
+                <button onclick="exportPNG(1)">🖼️ PNG 1x</button>
+                <button onclick="exportPNG(4)">🖼️ PNG 4x</button>
+            </div>
+            <div class="control-row">
+                <button onclick="exportPNG(10)">🖼️ PNG 10x</button>
+                <button onclick="exportHighResPNG()">🔥 Super Hi-Res</button>
+            </div>
+        </div>
+        
+        <div class="control-group">
+            <div>🖼️ <strong>Import Image</strong></div>
+            <input type="file" id="imageFile" accept="image/*" onchange="importImage()" style="font-size: 10px;">
+        </div>
+    </div>
+    
+    <div class="info" id="info">
+        Zoom: 1x<br>
+        Position: (0, 0)<br>
+        Precision: Normal<br>
+        Strokes: 0
+    </div>
+    
+    <div class="fps-counter" id="fpsCounter">FPS: 0</div>
+    
+    <canvas id="canvas"></canvas>
+
+    <script>
+        // High-precision coordinate system using scaled integers
+        class PrecisionCoord {
+            constructor(x = 0, y = 0, scale = 0) {
+                this.x = Math.round(x * (1 << scale));
+                this.y = Math.round(y * (1 << scale));
+                this.scale = scale;
+            }
+            
+            static fromFloat(x, y, targetScale = 20) {
+                return new PrecisionCoord(x, y, targetScale);
+            }
+            
+            toFloat() {
+                return {
+                    x: this.x / (1 << this.scale),
+                    y: this.y / (1 << this.scale)
+                };
+            }
+            
+            add(other) {
+                const maxScale = Math.max(this.scale, other.scale);
+                const thisScaled = new PrecisionCoord(this.toFloat().x, this.toFloat().y, maxScale);
+                const otherScaled = new PrecisionCoord(other.toFloat().x, other.toFloat().y, maxScale);
+                
+                return new PrecisionCoord(
+                    (thisScaled.x + otherScaled.x) / (1 << maxScale),
+                    (thisScaled.y + otherScaled.y) / (1 << maxScale),
+                    maxScale
+                );
+            }
+            
+            subtract(other) {
+                const maxScale = Math.max(this.scale, other.scale);
+                const thisScaled = new PrecisionCoord(this.toFloat().x, this.toFloat().y, maxScale);
+                const otherScaled = new PrecisionCoord(other.toFloat().x, other.toFloat().y, maxScale);
+                
+                return new PrecisionCoord(
+                    (thisScaled.x - otherScaled.x) / (1 << maxScale),
+                    (thisScaled.y - otherScaled.y) / (1 << maxScale),
+                    maxScale
+                );
+            }
+            
+            multiply(scalar) {
+                return new PrecisionCoord(this.toFloat().x * scalar, this.toFloat().y * scalar, this.scale);
+            }
+            
+            distanceTo(other) {
+                const thisFloat = this.toFloat();
+                const otherFloat = other.toFloat();
+                const dx = thisFloat.x - otherFloat.x;
+                const dy = thisFloat.y - otherFloat.y;
+                return Math.sqrt(dx * dx + dy * dy);
+            }
+        }
+
+        class InfiniteCanvas {
+            constructor(canvas) {
+                this.canvas = canvas;
+                this.ctx = canvas.getContext('2d');
+                this.setupCanvas();
+                
+                // Camera system
+                this.camera = {
+                    x: new PrecisionCoord(0, 0, 20),
+                    zoom: 1,
+                    minZoom: 1e-10,
+                    maxZoom: 1e10
+                };
+                
+                // Drawing state
+                this.strokes = [];
+                this.currentStroke = null;
+                this.history = [];
+                this.historyIndex = -1;
+                this.maxHistorySize = 100;
+                
+                // Tools and settings
+                this.currentTool = 'draw';
+                this.isDrawing = false;
+                this.isPanning = false;
+                this.brushSize = 2;
+                this.currentColor = '#ff6b6b';
+                this.useRandomColors = true;
+                this.eraserRadius = 10;
+                
+                // FPS tracking
+                this.lastFrameTime = performance.now();
+                this.frameCount = 0;
+                this.fps = 0;
+                
+                // Auto-save system using session persistence
+                this.autoSaveEnabled = true;
+                this.lastSaveTime = 0;
+                this.saveInterval = 2000; // Save every 2 seconds
+                
+                this.setupEventListeners();
+                this.loadFromStorage(); // Load saved data
+                this.saveState();
+                this.render();
+                this.startFPSCounter();
+                this.startAutoSave();
+            }
+            
+            setupCanvas() {
+                this.canvas.width = window.innerWidth;
+                this.canvas.height = window.innerHeight;
+                this.ctx.lineCap = 'round';
+                this.ctx.lineJoin = 'round';
+            }
+            
+            setupEventListeners() {
+                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
+                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
+                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
+                this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
+                
+                // Keyboard shortcuts
+                window.addEventListener('keydown', (e) => {
+                    if (e.ctrlKey && e.key === 'z' && !e.shiftKey) {
+                        e.preventDefault();
+                        this.undo();
+                    } else if ((e.ctrlKey && e.key === 'y') || (e.ctrlKey && e.shiftKey && e.key === 'Z')) {
+                        e.preventDefault();
+                        this.redo();
+                    } else if (e.key === 'd') {
+                        this.setTool('draw');
+                    } else if (e.key === 'e') {
+                        this.setTool('erase');
+                    } else if (e.key === 'p') {
+                        this.setTool('pan');
+                    }
+                });
+                
+                window.addEventListener('resize', () => this.setupCanvas());
+                
+                // UI event listeners
+                document.getElementById('brushSize').addEventListener('input', (e) => {
+                    this.brushSize = parseFloat(e.target.value);
+                    document.getElementById('brushSizeValue').textContent = this.brushSize + 'px';
+                });
+                
+                document.getElementById('colorPicker').addEventListener('change', (e) => {
+                    this.currentColor = e.target.value;
+                    this.useRandomColors = false;
+                    this.updateRandomColorButton();
+                });
+            }
+            
+            updateCursor() {
+                switch(this.currentTool) {
+                    case 'draw':
+                        this.canvas.className = 'cursor-draw';
+                        break;
+                    case 'erase':
+                        this.canvas.className = 'cursor-erase';
+                        break;
+                    case 'pan':
+                        this.canvas.className = 'cursor-pan';
+                        break;
+                }
+            }
+            
+            setTool(tool) {
+                this.currentTool = tool;
+                document.querySelectorAll('.tool-buttons button').forEach(btn => btn.classList.remove('active'));
+                document.getElementById(tool + 'Tool').classList.add('active');
+                this.updateCursor();
+            }
+            
+            screenToWorld(screenX, screenY) {
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                
+                const worldX = (screenX - centerX) / this.camera.zoom;
+                const worldY = (screenY - centerY) / this.camera.zoom;
+                
+                const cameraFloat = this.camera.x.toFloat();
+                return PrecisionCoord.fromFloat(worldX + cameraFloat.x, worldY + cameraFloat.y);
+            }
+            
+            worldToScreen(worldCoord) {
+                const worldFloat = worldCoord.toFloat();
+                const cameraFloat = this.camera.x.toFloat();
+                
+                const centerX = this.canvas.width / 2;
+                const centerY = this.canvas.height / 2;
+                
+                return {
+                    x: (worldFloat.x - cameraFloat.x) * this.camera.zoom + centerX,
+                    y: (worldFloat.y - cameraFloat.y) * this.camera.zoom + centerY
+                };
+            }
+            
+            onMouseDown(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (e.button === 0) { // Left click
+                    if (this.currentTool === 'draw') {
+                        this.isDrawing = true;
+                        const worldPos = this.screenToWorld(x, y);
+                        
+                        const color = this.useRandomColors ? 
+                            `hsl(${Date.now() % 360}, 70%, 60%)` : 
+                            this.currentColor;
+                        
+                        this.currentStroke = {
+                            points: [worldPos],
+                            width: this.brushSize / this.camera.zoom,
+                            color: color
+                        };
+                    } else if (this.currentTool === 'erase') {
+                        this.eraseAtPoint(this.screenToWorld(x, y));
+                    } else if (this.currentTool === 'pan') {
+                        this.isPanning = true;
+                        this.lastPanPos = { x, y };
+                    }
+                } else if (e.button === 2) { // Right click - always pan
+                    this.isPanning = true;
+                    this.lastPanPos = { x, y };
+                }
+            }
+            
+            onMouseMove(e) {
+                const rect = this.canvas.getBoundingClientRect();
+                const x = e.clientX - rect.left;
+                const y = e.clientY - rect.top;
+                
+                if (this.isDrawing && this.currentStroke && this.currentTool === 'draw') {
+                    const worldPos = this.screenToWorld(x, y);
+                    this.currentStroke.points.push(worldPos);
+                    this.render();
+                } else if (this.currentTool === 'erase' && e.buttons === 1) {
+                    this.eraseAtPoint(this.screenToWorld(x, y));
+                } else if (this.isPanning && this.lastPanPos) {
+                    const dx = x - this.lastPanPos.x;
+                    const dy = y - this.lastPanPos.y;
+                    
+                    const worldDx = -dx / this.camera.zoom;
+                    const worldDy = -dy / this.camera.zoom;
+                    
+                    const offset = PrecisionCoord.fromFloat(worldDx, worldDy);
+                    this.camera.x = this.camera.x.add(offset);
+                    
+                    this.lastPanPos = { x, y };
+                    this.render();
+                }
+                
+                this.updateInfo();
+            }
+            
+            onMouseUp(e) {
+                if (this.isDrawing && this.currentStroke) {
+                    this.strokes.push(this.currentStroke);
+                    this.currentStroke = null;
+                    this.saveState();
+                    this.saveToStorage(); // Auto-save after each stroke
+                }
+                
+                this.isDrawing = false;
+                this.isPanning = false;
+                this.lastPanPos = null;
+                this.render();
+            }
+            
+            eraseAtPoint(worldPos) {
+                const eraserRadius = this.eraserRadius / this.camera.zoom;
+                let erasedSomething = false;
+                
+                this.strokes = this.strokes.filter(stroke => {
+                    for (let point of stroke.points) {
+                        if (point.distanceTo(worldPos) < eraserRadius) {
+                            erasedSomething = true;
+                            return false;
+                        }
+                    }
+                    return true;
+                });
+                
+                if (erasedSomething) {
+                    this.saveState();
+                    this.saveToStorage(); // Auto-save after erasing
+                    this.render();
+                }
+            }
+            
+            onWheel(e) {
+                e.preventDefault();
+                
+                const rect = this.canvas.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+                
+                const worldPosBefore = this.screenToWorld(mouseX, mouseY);
+                
+                const zoomFactor = e.deltaY > 0 ? 0.9 : 1.1;
+                const newZoom = Math.max(this.camera.minZoom, 
+                                      Math.min(this.camera.maxZoom, this.camera.zoom * zoomFactor));
+                
+                if (newZoom !== this.camera.zoom) {
+                    this.camera.zoom = newZoom;
+                    
+                    const worldPosAfter = this.screenToWorld(mouseX, mouseY);
+                    const offset = worldPosBefore.subtract(worldPosAfter);
+                    this.camera.x = this.camera.x.add(offset);
+                    
+                    this.render();
+                    this.updateInfo();
+                }
+            }
+            
+            saveState() {
+                // Remove future history if we're not at the end
+                this.history = this.history.slice(0, this.historyIndex + 1);
+                
+                // Add current state
+                this.history.push(JSON.parse(JSON.stringify(this.strokes.map(stroke => ({
+                    points: stroke.points.map(p => ({x: p.toFloat().x, y: p.toFloat().y})),
+                    width: stroke.width,
+                    color: stroke.color
+                })))));
+                
+                // Limit history size
+                if (this.history.length > this.maxHistorySize) {
+                    this.history.shift();
+                } else {
+                    this.historyIndex++;
+                }
+                
+                this.updateUndoRedoButtons();
+            }
+            
+            undo() {
+                if (this.historyIndex > 0) {
+                    this.historyIndex--;
+                    this.loadStateFromHistory();
+                }
+            }
+            
+            redo() {
+                if (this.historyIndex < this.history.length - 1) {
+                    this.historyIndex++;
+                    this.loadStateFromHistory();
+                }
+            }
+            
+            loadStateFromHistory() {
+                const state = this.history[this.historyIndex];
+                this.strokes = state.map(stroke => ({
+                    points: stroke.points.map(p => PrecisionCoord.fromFloat(p.x, p.y)),
+                    width: stroke.width,
+                    color: stroke.color
+                }));
+                this.render();
+                this.updateUndoRedoButtons();
+            }
+            
+            updateUndoRedoButtons() {
+                document.getElementById('undoBtn').disabled = this.historyIndex <= 0;
+                document.getElementById('redoBtn').disabled = this.historyIndex >= this.history.length - 1;
+            }
+            
+            render() {
+                this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+                this.drawGrid();
+                
+                [...this.strokes, this.currentStroke].filter(Boolean).forEach(stroke => {
+                    this.drawStroke(stroke);
+                });
+                
+                this.updateFPS();
+            }
+            
+            drawGrid() {
+                this.ctx.save();
+                this.ctx.strokeStyle = 'rgba(128, 128, 128, 0.1)';
+                this.ctx.lineWidth = 1;
+                
+                let gridSpacing = 50;
+                while (gridSpacing * this.camera.zoom < 20) gridSpacing *= 2;
+                while (gridSpacing * this.camera.zoom > 100) gridSpacing /= 2;
+                
+                const cameraFloat = this.camera.x.toFloat();
+                const startX = Math.floor((cameraFloat.x - this.canvas.width / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
+                const endX = Math.ceil((cameraFloat.x + this.canvas.width / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
+                const startY = Math.floor((cameraFloat.y - this.canvas.height / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
+                const endY = Math.ceil((cameraFloat.y + this.canvas.height / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
+                
+                for (let x = startX; x <= endX; x += gridSpacing) {
+                    const worldStart = PrecisionCoord.fromFloat(x, startY);
+                    const worldEnd = PrecisionCoord.fromFloat(x, endY);
+                    const screenStart = this.worldToScreen(worldStart);
+                    const screenEnd = this.worldToScreen(worldEnd);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screenStart.x, screenStart.y);
+                    this.ctx.lineTo(screenEnd.x, screenEnd.y);
+                    this.ctx.stroke();
+                }
+                
+                for (let y = startY; y <= endY; y += gridSpacing) {
+                    const worldStart = PrecisionCoord.fromFloat(startX, y);
+                    const worldEnd = PrecisionCoord.fromFloat(endX, y);
+                    const screenStart = this.worldToScreen(worldStart);
+                    const screenEnd = this.worldToScreen(worldEnd);
+                    
+                    this.ctx.beginPath();
+                    this.ctx.moveTo(screenStart.x, screenStart.y);
+                    this.ctx.lineTo(screenEnd.x, screenEnd.y);
+                    this.ctx.stroke();
+                }
+                
+                this.ctx.restore();
+            }
+            
+            drawStroke(stroke) {
+                if (stroke.points.length < 2) return;
+                
+                this.ctx.save();
+                
+                const screenWidth = stroke.width * this.camera.zoom;
+                const finalWidth = Math.max(0.5, screenWidth);
+                
+                this.ctx.strokeStyle = stroke.color;
+                this.ctx.lineWidth = finalWidth;
+                this.ctx.beginPath();
+                
+                const firstPoint = this.worldToScreen(stroke.points[0]);
+                this.ctx.moveTo(firstPoint.x, firstPoint.y);
+                
+                for (let i = 1; i < stroke.points.length; i++) {
+                    const point = this.worldToScreen(stroke.points[i]);
+                    this.ctx.lineTo(point.x, point.y);
+                }
+                
+                this.ctx.stroke();
+                this.ctx.restore();
+            }
+            
+            startAutoSave() {
+                // Auto-save periodically
+                setInterval(() => {
+                    if (this.autoSaveEnabled && Date.now() - this.lastSaveTime > this.saveInterval) {
+                        this.saveToStorage();
+                    }
+                }, 1000);
+                
+                // Save when page is about to close
+                window.addEventListener('beforeunload', () => {
+                    this.saveToStorage();
+                });
+                
+                // Save when page loses focus
+                window.addEventListener('blur', () => {
+                    this.saveToStorage();
+                });
+            }
+            
+            saveToStorage() {
+                try {
+                    const data = {
+                        strokes: this.strokes.map(stroke => ({
+                            points: stroke.points.map(p => ({x: p.toFloat().x, y: p.toFloat().y})),
+                            width: stroke.width,
+                            color: stroke.color
+                        })),
+                        camera: {
+                            x: this.camera.x.toFloat().x,
+                            y: this.camera.x.toFloat().y,
+                            zoom: this.camera.zoom
+                        },
+                        settings: {
+                            brushSize: this.brushSize,
+                            currentColor: this.currentColor,
+                            useRandomColors: this.useRandomColors,
+                            currentTool: this.currentTool
+                        },
+                        timestamp: Date.now()
+                    };
+                    
+                    // Store in window object for session persistence
+                    if (!window.infiniteCanvasStorage) {
+                        window.infiniteCanvasStorage = {};
+                    }
+                    window.infiniteCanvasStorage.savedDrawing = JSON.stringify(data);
+                    this.lastSaveTime = Date.now();
+                    
+                    // Update info to show save status
+                    this.showSaveStatus();
+                } catch (error) {
+                    console.error('Failed to save to storage:', error);
+                }
+            }
+            
+            loadFromStorage() {
+                try {
+                    let savedData = null;
+                    
+                    // Try to load from window storage first (session persistence)
+                    if (window.infiniteCanvasStorage && window.infiniteCanvasStorage.savedDrawing) {
+                        savedData = JSON.parse(window.infiniteCanvasStorage.savedDrawing);
+                    }
+                    
+                    if (savedData && savedData.strokes) {
+                        // Load strokes
+                        this.strokes = savedData.strokes.map(stroke => ({
+                            points: stroke.points.map(p => PrecisionCoord.fromFloat(p.x, p.y)),
+                            width: stroke.width,
+                            color: stroke.color
+                        }));
+                        
+                        // Load camera position
+                        if (savedData.camera) {
+                            this.camera.x = PrecisionCoord.fromFloat(savedData.camera.x, savedData.camera.y);
+                            this.camera.zoom = savedData.camera.zoom;
+                        }
+                        
+                        // Load settings
+                        if (savedData.settings) {
+                            this.brushSize = savedData.settings.brushSize || 2;
+                            this.currentColor = savedData.settings.currentColor || '#ff6b6b';
+                            this.useRandomColors = savedData.settings.useRandomColors !== undefined ? 
+                                                 savedData.settings.useRandomColors : true;
+                            this.currentTool = savedData.settings.currentTool || 'draw';
+                            
+                            // Update UI elements
+                            setTimeout(() => {
+                                document.getElementById('brushSize').value = this.brushSize;
+                                document.getElementById('brushSizeValue').textContent = this.brushSize + 'px';
+                                document.getElementById('colorPicker').value = this.currentColor;
+                                this.setTool(this.currentTool);
+                                this.updateRandomColorButton();
+                            }, 100);
+                        }
+                        
+                        const loadTime = new Date(savedData.timestamp).toLocaleString();
+                        console.log(`Loaded drawing from ${loadTime} with ${this.strokes.length} strokes`);
+                    }
+                } catch (error) {
+                    console.error('Failed to load from storage:', error);
+                }
+            }
+            
+            showSaveStatus() {
+                // Brief visual feedback that data was saved
+                const info = document.getElementById('info');
+                const originalContent = info.innerHTML;
+                info.innerHTML = originalContent + '<br><span style="color: #0f0; font-size: 10px;">✓ Auto-saved</span>';
+                
+                setTimeout(() => {
+                    info.innerHTML = originalContent;
+                }, 1000);
+            }
+            
+            startFPSCounter() {
+                setInterval(() => {
+                    this.fps = this.frameCount;
+                    this.frameCount = 0;
+                    document.getElementById('fpsCounter').textContent = `FPS: ${this.fps}`;
+                }, 1000);
+            }
+            
+            updateFPS() {
+                this.frameCount++;
+            }
+            
+            updateInfo() {
+                const cameraFloat = this.camera.x.toFloat();
+                const info = document.getElementById('info');
+                
+                let precisionLevel = 'Normal';
+                if (this.camera.zoom > 1000) precisionLevel = 'High';
+                if (this.camera.zoom > 100000) precisionLevel = 'Extreme';
+                if (this.camera.zoom < 0.001) precisionLevel = 'Ultra-Wide';
+                
+                info.innerHTML = `
+                    Zoom: ${this.camera.zoom.toExponential(2)}x<br>
+                    Position: (${cameraFloat.x.toFixed(4)}, ${cameraFloat.y.toFixed(4)})<br>
+                    Precision: ${precisionLevel}<br>
+                    Strokes: ${this.strokes.length}
+                `;
+            }
+            
+            toggleRandomColor() {
+                this.useRandomColors = !this.useRandomColors;
+                this.updateRandomColorButton();
+            }
+            
+            updateRandomColorButton() {
+                const btn = document.getElementById('randomColorBtn');
+                if (this.useRandomColors) {
+                    btn.classList.add('active');
+                    btn.textContent = '🎲 Random ✓';
+                } else {
+                    btn.classList.remove('active');
+                    btn.textContent = '🎲 Random';
+                }
+            }
+            
+            clear() {
+                this.strokes = [];
+                this.currentStroke = null;
+                this.saveState();
+                this.saveToStorage(); // Auto-save after clearing
+                this.render();
+            }
+            
+            resetView() {
+                this.camera.x = new PrecisionCoord(0, 0, 20);
+                this.camera.zoom = 1;
+                this.render();
+                this.updateInfo();
+            }
+            
+            saveDrawing() {
+                const data = {
+                    strokes: this.strokes.map(stroke => ({
+                        points: stroke.points.map(p => ({x: p.toFloat().x, y: p.toFloat().y})),
+                        width: stroke.width,
+                        color: stroke.color
+                    })),
+                    camera: {
+                        x: this.camera.x.toFloat().x,
+                        y: this.camera.x.toFloat().y,
+                        zoom: this.camera.zoom
+                    }
+                };
+                
+                const blob = new Blob([JSON.stringify(data, null, 2)], {type: 'application/json'});
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `infinite-drawing-${new Date().toISOString().slice(0,10)}.json`;
+                a.click();
+                URL.revokeObjectURL(url);
+            }
+            
+            loadDrawing() {
+                const fileInput = document.getElementById('loadFile');
+                const file = fileInput.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const data = JSON.parse(e.target.result);
+                        
+                        this.strokes = data.strokes.map(stroke => ({
+                            points: stroke.points.map(p => PrecisionCoord.fromFloat(p.x, p.y)),
+                            width: stroke.width,
+                            color: stroke.color
+                        }));
+                        
+                        if (data.camera) {
+                            this.camera.x = PrecisionCoord.fromFloat(data.camera.x, data.camera.y);
+                            this.camera.zoom = data.camera.zoom;
+                        }
+                        
+                        this.saveState();
+                        this.render();
+                        this.updateInfo();
+                        alert('Drawing loaded successfully!');
+                    } catch (error) {
+                        alert('Error loading file: ' + error.message);
+                    }
+                    
+                    // Reset the file input so the same file can be loaded again
+                    fileInput.value = '';
+                };
+                reader.readAsText(file);
+            }
+            
+            getBounds() {
+                if (this.strokes.length === 0) return null;
+                
+                let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+                
+                this.strokes.forEach(stroke => {
+                    stroke.points.forEach(point => {
+                        const p = point.toFloat();
+                        minX = Math.min(minX, p.x);
+                        minY = Math.min(minY, p.y);
+                        maxX = Math.max(maxX, p.x);
+                        maxY = Math.max(maxY, p.y);
+                    });
+                });
+                
+                return { minX, minY, maxX, maxY };
+            }
+            
+            exportPNG(scale = 1) {
+                const bounds = this.getBounds();
+                if (!bounds) {
+                    alert('Nothing to export!');
+                    return;
+                }
+                
+                const padding = 50;
+                const width = (bounds.maxX - bounds.minX + 2 * padding) * scale;
+                const height = (bounds.maxY - bounds.minY + 2 * padding) * scale;
+                
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = width;
+                exportCanvas.height = height;
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                exportCtx.fillStyle = '#0a0a0a';
+                exportCtx.fillRect(0, 0, width, height);
+                exportCtx.lineCap = 'round';
+                exportCtx.lineJoin = 'round';
+                
+                this.strokes.forEach(stroke => {
+                    if (stroke.points.length < 2) return;
+                    
+                    exportCtx.strokeStyle = stroke.color;
+                    exportCtx.lineWidth = stroke.width * scale;
+                    exportCtx.beginPath();
+                    
+                    const firstPoint = stroke.points[0].toFloat();
+                    exportCtx.moveTo(
+                        (firstPoint.x - bounds.minX + padding) * scale,
+                        (firstPoint.y - bounds.minY + padding) * scale
+                    );
+                    
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        const point = stroke.points[i].toFloat();
+                        exportCtx.lineTo(
+                            (point.x - bounds.minX + padding) * scale,
+                            (point.y - bounds.minY + padding) * scale
+                        );
+                    }
+                    
+                    exportCtx.stroke();
+                });
+                
+                exportCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `infinite-drawing-${scale}x-${new Date().toISOString().slice(0,10)}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            }
+            
+            exportHighResPNG() {
+                const bounds = this.getBounds();
+                if (!bounds) {
+                    alert('Nothing to export!');
+                    return;
+                }
+                
+                // Create super high resolution export
+                const scale = 20;
+                const padding = 200;
+                const width = (bounds.maxX - bounds.minX + 2 * padding) * scale;
+                const height = (bounds.maxY - bounds.minY + 2 * padding) * scale;
+                
+                if (width > 32767 || height > 32767) {
+                    alert('Drawing too large for super high-res export! Try regular PNG export.');
+                    return;
+                }
+                
+                const exportCanvas = document.createElement('canvas');
+                exportCanvas.width = width;
+                exportCanvas.height = height;
+                const exportCtx = exportCanvas.getContext('2d');
+                
+                exportCtx.fillStyle = '#0a0a0a';
+                exportCtx.fillRect(0, 0, width, height);
+                exportCtx.lineCap = 'round';
+                exportCtx.lineJoin = 'round';
+                
+                this.strokes.forEach(stroke => {
+                    if (stroke.points.length < 2) return;
+                    
+                    exportCtx.strokeStyle = stroke.color;
+                    exportCtx.lineWidth = Math.max(1, stroke.width * scale);
+                    exportCtx.beginPath();
+                    
+                    const firstPoint = stroke.points[0].toFloat();
+                    exportCtx.moveTo(
+                        (firstPoint.x - bounds.minX + padding) * scale,
+                        (firstPoint.y - bounds.minY + padding) * scale
+                    );
+                    
+                    for (let i = 1; i < stroke.points.length; i++) {
+                        const point = stroke.points[i].toFloat();
+                        exportCtx.lineTo(
+                            (point.x - bounds.minX + padding) * scale,
+                            (point.y - bounds.minY + padding) * scale
+                        );
+                    }
+                    
+                    exportCtx.stroke();
+                });
+                
+                exportCanvas.toBlob((blob) => {
+                    const url = URL.createObjectURL(blob);
+                    const a = document.createElement('a');
+                    a.href = url;
+                    a.download = `infinite-drawing-HIRES-${new Date().toISOString().slice(0,10)}.png`;
+                    a.click();
+                    URL.revokeObjectURL(url);
+                });
+            }
+            
+            importImage() {
+                const fileInput = document.getElementById('imageFile');
+                const file = fileInput.files[0];
+                if (!file) return;
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    const img = new Image();
+                    img.onload = () => {
+                        this.vectorizeImage(img);
+                        // Reset the file input so the same image can be imported again
+                        fileInput.value = '';
+                    };
+                    img.src = e.target.result;
+                };
+                reader.readAsDataURL(file);
+            }
+            
+            vectorizeImage(img) {
+                const tempCanvas = document.createElement('canvas');
+                const tempCtx = tempCanvas.getContext('2d');
+                
+                // Scale down for edge detection if image is too large
+                const maxSize = 500;
+                const scale = Math.min(maxSize / img.width, maxSize / img.height, 1);
+                tempCanvas.width = img.width * scale;
+                tempCanvas.height = img.height * scale;
+                
+                tempCtx.drawImage(img, 0, 0, tempCanvas.width, tempCanvas.height);
+                
+                const imageData = tempCtx.getImageData(0, 0, tempCanvas.width, tempCanvas.height);
+                const data = imageData.data;
+                
+                // Simple edge detection and vectorization
+                const strokeWidth = 2 / this.camera.zoom;
+                const step = Math.max(1, Math.floor(4 / scale));
+                
+                // Place image at current camera position
+                const cameraFloat = this.camera.x.toFloat();
+                const offsetX = cameraFloat.x - (tempCanvas.width * scale) / (2 * this.camera.zoom);
+                const offsetY = cameraFloat.y - (tempCanvas.height * scale) / (2 * this.camera.zoom);
+                
+                for (let y = 0; y < tempCanvas.height - step; y += step) {
+                    for (let x = 0; x < tempCanvas.width - step; x += step) {
+                        const idx = (y * tempCanvas.width + x) * 4;
+                        const nextIdxX = (y * tempCanvas.width + x + step) * 4;
+                        const nextIdxY = ((y + step) * tempCanvas.width + x) * 4;
+                        
+                        const brightness = (data[idx] + data[idx + 1] + data[idx + 2]) / 3;
+                        const brightnessX = (data[nextIdxX] + data[nextIdxX + 1] + data[nextIdxX + 2]) / 3;
+                        const brightnessY = (data[nextIdxY] + data[nextIdxY + 1] + data[nextIdxY + 2]) / 3;
+                        
+                        const edgeStrength = Math.abs(brightness - brightnessX) + Math.abs(brightness - brightnessY);
+                        
+                        if (edgeStrength > 30) { // Edge threshold
+                            const worldX = offsetX + x / this.camera.zoom;
+                            const worldY = offsetY + y / this.camera.zoom;
+                            
+                            const color = `rgb(${data[idx]}, ${data[idx + 1]}, ${data[idx + 2]})`;
+                            
+                            // Create a small stroke for each edge pixel
+                            const stroke = {
+                                points: [
+                                    PrecisionCoord.fromFloat(worldX, worldY),
+                                    PrecisionCoord.fromFloat(worldX + step / this.camera.zoom, worldY + step / this.camera.zoom)
+                                ],
+                                width: strokeWidth,
+                                color: color
+                            };
+                            
+                            this.strokes.push(stroke);
+                        }
+                    }
+                }
+                
+                this.saveState();
+                this.render();
+                this.updateInfo();
+                alert(`Image vectorized! Added ${this.strokes.length} edge strokes.`);
+            }
+        }
+        
+        // Global canvas instance
+        let canvas;
+        
+        function init() {
+            const canvasElement = document.getElementById('canvas');
+            canvas = new InfiniteCanvas(canvasElement);
+            canvas.updateCursor();
+            canvas.updateRandomColorButton();
+            canvas.updateUndoRedoButtons();
+        }
+        
+        function setTool(tool) {
+            canvas.setTool(tool);
+        }
+        
+        function toggleRandomColor() {
+            canvas.toggleRandomColor();
+        }
+        
+        function clearCanvas() {
+            if (confirm('Clear all drawings? This cannot be undone.')) {
+                canvas.clear();
+            }
+        }
+        
+        function resetView() {
+            canvas.resetView();
+        }
+        
+        function saveDrawing() {
+            canvas.saveDrawing();
+        }
+        
+        function loadDrawing() {
+            canvas.loadDrawing();
+        }
+        
+        function exportPNG(scale) {
+            canvas.exportPNG(scale);
+        }
+        
+        function exportHighResPNG() {
+            canvas.exportHighResPNG();
+        }
+        
+        function importImage() {
+            canvas.importImage();
+        }
+        
+        function undo() {
+            canvas.undo();
+        }
+        
+        function redo() {
+            canvas.redo();
+        }
+        
+        function goBack() {
+            window.history.back();
+        }
+        
+        // Start the application
+        window.addEventListener('load', init);
+    </script>
+</body>
+</html>
