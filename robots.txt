@@ -1,0 +1,19 @@
+# robots.txt for UnicornMaster-Dev Portfolio
+# This file tells search engines how to crawl your site
+
+# Allow all robots to crawl the entire site
+User-agent: *
+Allow: /
+
+# Disallow crawling of specific files/directories if needed
+# Disallow: /admin/
+# Disallow: /private/
+
+# Sitemap location
+Sitemap: https://unicornmaster.xyz/sitemap.xml
+
+# Crawl delay (optional - tells robots to wait between requests)
+Crawl-delay: 1
+
+# Request rate (optional - limits requests per second)
+# Request-rate: 1/10
