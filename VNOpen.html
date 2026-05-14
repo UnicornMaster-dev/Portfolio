@@ -1,0 +1,557 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>VNOpen — Visual Novel Viewer</title>
+  <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+  <style>
+    :root{
+      --bg0:#0b1020;
+      --stroke:rgba(255,255,255,.12);
+      --text:rgba(255,255,255,.92);
+      --muted:rgba(255,255,255,.65);
+      --shadow:0 18px 40px rgba(0,0,0,.35);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial;
+      color:var(--text);
+      background:radial-gradient(1200px 800px at 20% 10%, #1a2a52 0%, var(--bg0) 55%, #050814 100%);
+      display:grid;
+      grid-template-rows:auto 1fr auto;
+    }
+    header{
+      display:flex;
+      justify-content:space-between;
+      align-items:center;
+      padding:12px;
+      border-bottom:1px solid var(--stroke);
+      background:rgba(0,0,0,.25);
+      backdrop-filter: blur(8px);
+    }
+    .row{display:flex; gap:10px; align-items:center}
+    .btn{
+      appearance:none;
+      border:1px solid rgba(255,255,255,.16);
+      background:rgba(255,255,255,.06);
+      color:var(--text);
+      padding:8px 12px;
+      border-radius:10px;
+      cursor:pointer;
+      font-weight:700;
+    }
+    .btn:hover{background:rgba(255,255,255,.09)}
+    .pill{font-size:12px;color:var(--muted)}
+
+    main{display:flex; align-items:center; justify-content:center; padding:18px}
+.stageWrap{
+  width:min(1100px, calc(100vw - 40px));
+  aspect-ratio: 16/9;
+  border-radius:16px;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(0,0,0,.28);
+  overflow:hidden;
+  position:relative;
+  box-shadow:0 28px 90px rgba(0,0,0,.55);
+
+  margin: 0 auto; /* centers horizontally */
+}
+
+    .dialogueBox{
+      width:min(1100px, calc(100vw - 40px));
+      margin:0 auto 16px;
+      border-radius:16px;
+      border:1px solid rgba(255,255,255,.12);
+      background:linear-gradient(180deg, rgba(15,23,42,.86), rgba(11,16,32,.76));
+      padding:14px 14px 10px;
+      box-shadow:var(--shadow);
+      user-select:none;
+    }
+    .speaker{font-weight:850; margin-bottom:6px}
+    .text{line-height:1.35; min-height:48px; white-space:pre-wrap}
+    .choices{display:flex; flex-wrap:wrap; gap:8px; margin-top:10px}
+    .choiceBtn{
+      border-radius:999px;
+      border:1px solid rgba(255,255,255,.14);
+      background:rgba(255,255,255,.05);
+      color:var(--text);
+      padding:8px 12px;
+      cursor:pointer;
+      font-weight:750;
+    }
+    .choiceBtn:hover{background:rgba(255,255,255,.08)}
+    .hint{margin-top:10px; color:rgba(255,255,255,.45); font-size:12px}
+
+    .dropHint{
+      border:1px dashed rgba(255,255,255,.20);
+      border-radius:14px;
+      padding:14px;
+      color:rgba(255,255,255,.70);
+      background:rgba(255,255,255,.03);
+      max-width:900px;
+      margin:16px auto 0;
+    }
+  </style>
+</head>
+<body>
+<header>
+  <div class="row">
+    <div style="font-weight:900">VNOpen</div>
+    <div class="pill" id="status">Open a .vn file to start</div>
+  </div>
+  <div class="row">
+    <input id="file" type="file" accept=".vn,application/zip" hidden />
+    <button class="btn" id="btnOpen">Open .vn…</button>
+    <button class="btn" id="btnRestart" disabled>Restart</button>
+  </div>
+</header>
+
+<main>
+  <div style="width:100%">
+    <div class="stageWrap" id="stage"></div>
+    <div class="dropHint" id="dropHint">Tip: you can also drag and drop a <strong>.vn</strong> file anywhere on this page.</div>
+  </div>
+</main>
+
+<footer>
+  <div class="dialogueBox" id="dialogueBox" title="Click to advance (or finish typewriter)">
+    <div class="speaker" id="speaker"></div>
+    <div class="text" id="text"></div>
+    <div class="choices" id="choices"></div>
+    <div class="hint">Click to advance · Choices appear as buttons</div>
+  </div>
+</footer>
+
+<script>
+  const $ = (id) => document.getElementById(id);
+  const el = (tag, attrs={}) => {
+    const n = document.createElement(tag);
+    for (const [k,v] of Object.entries(attrs)) {
+      if (k === 'class') n.className = v;
+      else if (k === 'text') n.textContent = v;
+      else if (k.startsWith('on') && typeof v === 'function') n.addEventListener(k.slice(2).toLowerCase(), v);
+      else if (v != null) n.setAttribute(k, v);
+    }
+    return n;
+  };
+
+  const statusEl = $('status');
+  const fileEl = $('file');
+  const btnOpen = $('btnOpen');
+  const btnRestart = $('btnRestart');
+  const stageEl = $('stage');
+  const dropHintEl = $('dropHint');
+  const dialogueBox = $('dialogueBox');
+  const speakerEl = $('speaker');
+  const textEl = $('text');
+  const choicesEl = $('choices');
+
+  let project = null;
+  let player = null;
+
+  function clamp(v, a, b){ return Math.max(a, Math.min(b, v)); }
+
+  function evaluateTrack(kfs, t, fallback, postValue=null){
+    if (!kfs || kfs.length === 0) return fallback;
+    // Match editor/runtime semantics:
+    // - before first keyframe => base value
+    // - after last keyframe => hold last key (or a stored postValue override)
+    const eps = 1e-3;
+    if (t < kfs[0].t - eps) return fallback;
+    if (t > kfs[kfs.length-1].t + eps) return postValue==null ? kfs[kfs.length-1].v : postValue;
+    if (t <= kfs[0].t) return kfs[0].v;
+    if (t >= kfs[kfs.length-1].t) return kfs[kfs.length-1].v;
+    for (let i=0;i<kfs.length-1;i++){
+      const A=kfs[i], B=kfs[i+1];
+      if (t>=A.t && t<=B.t){
+        const u=(t-A.t)/((B.t-A.t)||1);
+        return A.v + (B.v-A.v)*u;
+      }
+    }
+    return fallback;
+  }
+
+  function evaluateNode(scene, node, t){
+    const tr = scene?.timeline?.tracks?.[node.id];
+    return {
+      x: evaluateTrack(tr?.x, t, node.x, tr?.post?.x ?? null),
+      y: evaluateTrack(tr?.y, t, node.y, tr?.post?.y ?? null),
+      scale: evaluateTrack(tr?.scale, t, node.scale, tr?.post?.scale ?? null),
+      opacity: evaluateTrack(tr?.opacity, t, node.opacity, tr?.post?.opacity ?? null),
+      rotation: evaluateTrack(tr?.rotation, t, node.rotation, tr?.post?.rotation ?? null),
+    };
+  }
+
+  function applyDialogueStyle(){
+    const ds = project?.meta?.dialogueStyle;
+    if (!ds) return;
+    installProjectFonts();
+    dialogueBox.style.borderColor = ds.borderColor || 'rgba(255,255,255,.12)';
+    dialogueBox.style.background = `linear-gradient(180deg, ${ds.boxBg || 'rgba(15,23,42,.86)'}, ${ds.boxBg2 || 'rgba(11,16,32,.76)'})`;
+    dialogueBox.style.fontFamily = ds.fontFamily || 'inherit';
+    dialogueBox.style.fontSize = `${ds.fontSize || 18}px`;
+    speakerEl.style.color = ds.speakerColor || 'rgba(255,255,255,.92)';
+    textEl.style.color = ds.textColor || 'rgba(255,255,255,.88)';
+  }
+
+  function installProjectFonts(){
+    const fonts = Object.values(project?.assets || {}).filter((a) => a && a.type === 'font' && a.dataUrl && a.fontFamily);
+    let styleEl = document.getElementById('vnm_fontfaces');
+    if (!styleEl){
+      styleEl = document.createElement('style');
+      styleEl.id = 'vnm_fontfaces';
+      document.head.appendChild(styleEl);
+    }
+    styleEl.textContent = fonts.map((a) => {
+      const fam = String(a.fontFamily).replace(/"/g, '\\"');
+      return `@font-face{font-family:"${fam}";src:url(${a.dataUrl});font-display:swap;}`;
+    }).join('\n');
+  }
+
+  function createPlayer(){
+    let state = null;
+    let raf = 0;
+
+    // Read the project's design resolution (landscape or portrait).
+    const stageMeta = project?.meta?.stage || { width: 960, height: 540 };
+    const STAGE_W = Math.max(1, Number(stageMeta.width) || 960);
+    const STAGE_H = Math.max(1, Number(stageMeta.height) || 540);
+
+    // We'll explicitly size the stage to fit the viewport ("contain").
+    // This avoids portrait projects becoming extremely tall due to a fixed max-width.
+    stageEl.style.aspectRatio = 'auto';
+
+    let stageInner = null;
+    const onResize = () => {
+      updateStageViewportSize();
+      updateStageScale();
+    };
+
+    function updateStageViewportSize(){
+      // Fit the stage inside the available viewport area.
+      const headerH = document.querySelector('header')?.getBoundingClientRect().height || 0;
+      const footerH = document.querySelector('footer')?.getBoundingClientRect().height || 0;
+      const availW = Math.max(320, Math.min(1100, (window.innerWidth || 1100) - 40));
+      // Some breathing room for main padding.
+      const availH = Math.max(200, (window.innerHeight || 700) - headerH - footerH - 72);
+
+      const s = Math.min(availW / STAGE_W, availH / STAGE_H);
+      stageEl.style.width = `${Math.max(1, Math.floor(STAGE_W * s))}px`;
+      stageEl.style.height = `${Math.max(1, Math.floor(STAGE_H * s))}px`;
+    }
+
+    function ensureStageInner(){
+      if (stageInner && stageInner.isConnected) return;
+      stageEl.replaceChildren();
+      stageEl.style.position = 'relative';
+      stageEl.style.overflow = 'hidden';
+      stageInner = document.createElement('div');
+      stageInner.style.position = 'absolute';
+      stageInner.style.left = '0';
+      stageInner.style.top = '0';
+      stageInner.style.width = `${STAGE_W}px`;
+      stageInner.style.height = `${STAGE_H}px`;
+      stageInner.style.transformOrigin = 'top left';
+      stageEl.appendChild(stageInner);
+    }
+
+    function updateStageScale(){
+      if (!stageInner) return;
+      const w = stageEl.clientWidth || STAGE_W;
+      const h = stageEl.clientHeight || STAGE_H;
+      const s = Math.min(w / STAGE_W, h / STAGE_H);
+      const ox = (w - STAGE_W * s) / 2;
+      const oy = (h - STAGE_H * s) / 2;
+      stageInner.style.transform = `translate(${ox}px, ${oy}px) scale(${s})`;
+    }
+
+    function renderStageAtTime(scene, t){
+      ensureStageInner();
+      updateStageViewportSize();
+      updateStageScale();
+      stageInner.replaceChildren();
+
+      const bg = document.createElement('div');
+      bg.style.position = 'absolute';
+      bg.style.inset = '0';
+      bg.style.backgroundSize = 'cover';
+      bg.style.backgroundPosition = 'center';
+
+      const bgId = scene?.backgroundAssetId ?? project?.meta?.defaultBackgroundAssetId ?? null;
+      const bgAsset = bgId ? project?.assets?.[bgId] : null;
+      bg.style.backgroundImage = bgAsset?.dataUrl ? `url(${bgAsset.dataUrl})` : 'none';
+      stageInner.appendChild(bg);
+
+      for (const nodeId of (scene?.nodeOrder || [])){
+        const node = scene?.nodes?.[nodeId];
+        if (!node) continue;
+        const asset = node.assetId ? project?.assets?.[node.assetId] : null;
+        const anim = evaluateNode(scene, node, t);
+
+        const spr = document.createElement('div');
+        spr.style.position = 'absolute';
+        const w = node.width || 320;
+        const h = node.height || 480;
+        spr.style.width = `${w}px`;
+        spr.style.height = `${h}px`;
+        spr.style.left = `${anim.x - w/2}px`;
+        spr.style.top = `${anim.y - h/2}px`;
+        spr.style.opacity = String(clamp(anim.opacity, 0, 1));
+        spr.style.transformOrigin = 'center';
+        spr.style.transform = `rotate(${anim.rotation}deg) scale(${anim.scale})`;
+        spr.style.zIndex = String(node.z ?? 10);
+
+        if (asset?.dataUrl){
+          const img = document.createElement('img');
+          img.src = asset.dataUrl;
+          img.alt = asset.name || '';
+          img.style.width = '100%';
+          img.style.height = '100%';
+          img.style.objectFit = 'contain';
+          img.draggable = false;
+          spr.appendChild(img);
+        }
+
+        stageInner.appendChild(spr);
+      }
+    }
+
+    function startTypewriter(fullText, onDone){
+      const ds = project?.meta?.dialogueStyle;
+      const tw = ds?.typewriter;
+      const enabled = tw?.enabled !== false;
+      const cps = Math.max(5, Number(tw?.cps ?? 45));
+      const text = String(fullText ?? '');
+      if (!enabled || text.length === 0){
+        textEl.textContent = text;
+        state.typing = null;
+        onDone?.();
+        return;
+      }
+      textEl.textContent = '';
+      state.typing = { fullText: text, startAtSceneTime: state.sceneTime, cps, done:false, onDone };
+    }
+
+    function finishTyping(){
+      if (!state?.typing) return;
+      textEl.textContent = state.typing.fullText;
+      state.typing.done = true;
+      const cb = state.typing.onDone;
+      state.typing.onDone = null;
+      cb?.();
+    }
+
+    function showBlock(){
+      const scene = project.scenes[state.sceneId];
+      const blocks = scene.script || [];
+      const block = blocks[state.blockIndex];
+      choicesEl.replaceChildren();
+      state.typing = null;
+
+      if (!block){
+        speakerEl.textContent='';
+        textEl.textContent='(End of scene)';
+        return;
+      }
+
+      const at = typeof block.atTime === 'number' ? block.atTime : null;
+      if (at !== null && state.sceneTime < at){
+        state.waitingForTime = true;
+        speakerEl.textContent='';
+        textEl.textContent='';
+        return;
+      }
+      state.waitingForTime = false;
+
+      if (block.type === 'say'){
+        speakerEl.textContent = block.speaker || '';
+        startTypewriter(block.text || '');
+        return;
+      }
+
+      if (block.type === 'choice'){
+        speakerEl.textContent='';
+        startTypewriter(block.prompt || 'Make a choice', () => {
+          for (const opt of (block.options || [])){
+            const b = el('button', { class:'choiceBtn', text: opt.text || 'Option', onClick:(e)=>{
+              e.stopPropagation();
+              gotoScene(opt.gotoSceneId || project.startSceneId);
+            }});
+            choicesEl.appendChild(b);
+          }
+        });
+        return;
+      }
+
+      if (block.type === 'jump'){
+        gotoScene(block.targetSceneId || project.startSceneId);
+      }
+    }
+
+    function gotoScene(sceneId){
+      state.sceneId = sceneId;
+      state.blockIndex = 0;
+      state.sceneTime = 0;
+      state.lastNow = 0;
+      state.waitingForTime = false;
+      state.typing = null;
+      showBlock();
+    }
+
+    function advance(){
+      if (state.typing && !state.typing.done){
+        finishTyping();
+        return;
+      }
+
+      const scene = project.scenes[state.sceneId];
+      const blocks = scene.script || [];
+      const block = blocks[state.blockIndex];
+      if (!block) return;
+      if (block.type === 'choice') return;
+      state.blockIndex++;
+      showBlock();
+    }
+
+    function tick(now){
+      const scene = project.scenes[state.sceneId];
+      const duration = Math.max(0.1, Number(scene.timeline?.duration) || 3);
+      if (!state.lastNow) state.lastNow = now;
+      const dt = (now - state.lastNow)/1000;
+      state.lastNow = now;
+
+      // Animation plays once.
+      state.sceneTime = Math.min(state.sceneTime + dt, duration);
+
+      renderStageAtTime(scene, state.sceneTime);
+
+      // update typewriter
+      if (state.typing && !state.typing.done){
+        const elapsed = Math.max(0, state.sceneTime - state.typing.startAtSceneTime);
+        const count = Math.floor(elapsed * state.typing.cps);
+        const next = state.typing.fullText.slice(0, Math.min(state.typing.fullText.length, count));
+        if (textEl.textContent !== next) textEl.textContent = next;
+        if (count >= state.typing.fullText.length) finishTyping();
+      }
+
+      // timed blocks
+      if (state.waitingForTime){
+        const blocks = scene.script || [];
+        const block = blocks[state.blockIndex];
+        const at = typeof block?.atTime === 'number' ? block.atTime : null;
+        if (at === null || state.sceneTime >= at) showBlock();
+      }
+
+      raf = requestAnimationFrame(tick);
+    }
+
+    function start(){
+      state = { sceneId: project.startSceneId, blockIndex:0, sceneTime:0, lastNow:0, waitingForTime:false, typing:null };
+      ensureStageInner();
+      updateStageViewportSize();
+      updateStageScale();
+      window.addEventListener('resize', onResize);
+      showBlock();
+      raf = requestAnimationFrame(tick);
+    }
+
+    function stop(){
+      cancelAnimationFrame(raf);
+      raf = 0;
+      state = null;
+      window.removeEventListener('resize', onResize);
+      stageEl.replaceChildren();
+      speakerEl.textContent='';
+      textEl.textContent='';
+      choicesEl.replaceChildren();
+    }
+
+    return { start, stop, advance };
+  }
+
+  async function openVnFile(file){
+    if (!file) return;
+    if (!window.JSZip) throw new Error('JSZip failed to load.');
+
+    statusEl.textContent = 'Loading…';
+    btnRestart.disabled = true;
+
+    // cleanup old object urls
+    if (project?.assets){
+      for (const a of Object.values(project.assets)){
+        if (a && a._objectUrl) URL.revokeObjectURL(a._objectUrl);
+      }
+    }
+
+    const ab = await file.arrayBuffer();
+    const zip = await JSZip.loadAsync(ab);
+    const projectText = await zip.file('project.json').async('string');
+    project = JSON.parse(projectText);
+
+    // Inflate assets: convert asset.path -> objectUrl and set asset.dataUrl
+    for (const a of Object.values(project.assets || {})){
+      if (!a) continue;
+      if (a.dataUrl) continue;
+      if (a.path){
+        const f = zip.file(a.path);
+        if (!f) continue;
+        const blob = await f.async('blob');
+        const url = URL.createObjectURL(blob);
+        a.dataUrl = url;
+        a._objectUrl = url;
+      }
+    }
+
+    // ensure minimum style defaults
+    project.meta = project.meta || {};
+    project.meta.dialogueStyle = project.meta.dialogueStyle || { typewriter:{ enabled:true, cps:45 } };
+    project.meta.dialogueStyle.typewriter = project.meta.dialogueStyle.typewriter || { enabled:true, cps:45 };
+
+    applyDialogueStyle();
+
+    // Reduce vertical pressure (especially for portrait projects).
+    if (dropHintEl) dropHintEl.style.display = 'none';
+
+    if (player) player.stop();
+    player = createPlayer();
+    player.start();
+
+    btnRestart.disabled = false;
+    statusEl.textContent = `Loaded: ${project?.meta?.title || file.name}`;
+  }
+
+  btnOpen.addEventListener('click', () => fileEl.click());
+  fileEl.addEventListener('change', async () => {
+    try{ await openVnFile(fileEl.files[0]); }
+    catch(err){ statusEl.textContent = `Error: ${err?.message || err}`; console.error(err); }
+    finally{ fileEl.value=''; }
+  });
+
+  btnRestart.addEventListener('click', () => {
+    if (!project) return;
+    if (player) player.stop();
+    player = createPlayer();
+    player.start();
+  });
+
+  dialogueBox.addEventListener('click', (e) => {
+    if (e.target && e.target.closest && e.target.closest('button')) return;
+    if (player) player.advance();
+  });
+
+  // Drag & drop
+  window.addEventListener('dragover', (e) => { e.preventDefault(); });
+  window.addEventListener('drop', async (e) => {
+    e.preventDefault();
+    const f = e.dataTransfer?.files?.[0];
+    if (!f) return;
+    try{ await openVnFile(f); }
+    catch(err){ statusEl.textContent = `Error: ${err?.message || err}`; console.error(err); }
+  });
+</script>
+</body>
+</html>
+
