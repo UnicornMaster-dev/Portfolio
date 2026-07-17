@@ -1,0 +1,575 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Comic Viewer</title>
+<style>
+  :root {
+    --bg: #111214;
+    --panel: #1b1c1f;
+    --accent: #4f8cff;
+    --text: #e8e8ea;
+    --muted: #9a9ba1;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0; height: 100%;
+    background: var(--bg); color: var(--text);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  /* ---------- Top bar ---------- */
+  #topbar {
+    position: fixed; top: 0; left: 0; right: 0; height: 52px;
+    background: var(--panel); border-bottom: 1px solid #2a2b2f;
+    display: flex; align-items: center; gap: 10px; padding: 0 12px;
+    z-index: 50;
+  }
+  #topbar button, #topbar label.btn {
+    background: #2a2c30; color: var(--text); border: 1px solid #3a3c42;
+    border-radius: 6px; padding: 7px 12px; cursor: pointer; font-size: 13px;
+    white-space: nowrap; user-select: none;
+  }
+  #topbar button:hover, #topbar label.btn:hover { background: #34363c; }
+  #topbar button:active { background: var(--accent); }
+  #fileInput { display: none; }
+  #pageInfo { color: var(--muted); font-size: 13px; min-width: 90px; text-align: center; }
+  #pageJump {
+    width: 60px; background: #2a2c30; border: 1px solid #3a3c42; color: var(--text);
+    border-radius: 6px; padding: 6px; font-size: 13px; text-align: center;
+  }
+  #spacer { flex: 1; }
+  #modeToggle { display: flex; gap: 4px; }
+  #modeToggle button.active { background: var(--accent); border-color: var(--accent); }
+  #zoomLabel { color: var(--muted); font-size: 12px; min-width: 42px; text-align: center; }
+
+  /* ---------- Main viewing area ---------- */
+  #viewer {
+    position: fixed; top: 52px; left: 0; right: 0; bottom: 0;
+    overflow: auto;
+    scroll-behavior: auto;
+  }
+  #viewer.scrollMode {
+    overflow-y: auto; overflow-x: hidden;
+  }
+  #viewer.singleMode {
+    overflow: hidden;
+  }
+
+  #stage {
+    display: flex; flex-direction: column; align-items: center;
+    min-height: 100%;
+  }
+  #stage.single {
+    height: 100%; justify-content: center; align-items: center;
+    cursor: grab;
+  }
+  #stage.single.grabbing { cursor: grabbing; }
+
+  .panel-img {
+    max-width: 100%;
+    display: block;
+    user-select: none;
+    -webkit-user-drag: none;
+  }
+  #stage:not(.single) .panel-img {
+    margin: 0 auto;
+  }
+  #stage.single .panel-img {
+    max-width: none;
+    max-height: none;
+    transform-origin: center center;
+    will-change: transform;
+  }
+
+  #empty {
+    position: fixed; inset: 52px 0 0 0;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 14px; color: var(--muted); text-align: center; padding: 20px;
+  }
+  #empty .big { font-size: 18px; color: var(--text); }
+  #empty label.btn {
+    background: var(--accent); color: white; border: none;
+    padding: 10px 18px; border-radius: 8px; cursor: pointer; font-size: 14px;
+  }
+
+  /* ---------- Thumbnail strip ---------- */
+  #thumbs {
+    position: fixed; bottom: 0; left: 0; right: 0; height: 78px;
+    background: var(--panel); border-top: 1px solid #2a2b2f;
+    display: flex; align-items: center; gap: 6px; padding: 6px 10px;
+    overflow-x: auto; overflow-y: hidden; z-index: 40;
+    transition: transform 0.2s;
+  }
+  #thumbs.hidden { transform: translateY(100%); }
+  #thumbs img {
+    height: 62px; border-radius: 4px; cursor: pointer; opacity: 0.55;
+    border: 2px solid transparent; flex-shrink: 0;
+  }
+  #thumbs img.current { opacity: 1; border-color: var(--accent); }
+  #thumbs img:hover { opacity: 1; }
+
+  #viewer.scrollMode ~ #thumbs, #viewer.singleMode ~ #thumbs {}
+
+  #hint {
+    position: fixed; top: 60px; left: 50%; transform: translateX(-50%);
+    background: rgba(0,0,0,0.7); color: var(--text); padding: 6px 14px;
+    border-radius: 20px; font-size: 12px; z-index: 60; pointer-events: none;
+    opacity: 0; transition: opacity 0.3s;
+  }
+  #hint.show { opacity: 1; }
+
+  #progress {
+    position: fixed; top: 52px; left: 0; height: 3px; background: var(--accent);
+    z-index: 55; transition: width 0.1s;
+  }
+
+  ::-webkit-scrollbar { width: 10px; height: 10px; }
+  ::-webkit-scrollbar-track { background: var(--bg); }
+  ::-webkit-scrollbar-thumb { background: #3a3c42; border-radius: 5px; }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <label class="btn" for="fileInput">📂 Load Images</label>
+  <input id="fileInput" type="file" accept="image/*" multiple webkitdirectory>
+  <button id="pickFiles">Pick files (no folder)</button>
+  <button id="autoLoadBtn">🌐 Auto-load panels</button>
+  <div id="modeToggle">
+    <button id="modeScroll" class="active">Scroll</button>
+    <button id="modeSingle">Single</button>
+  </div>
+  <button id="prevBtn">◀ Prev</button>
+  <span id="pageInfo">0 / 0</span>
+  <button id="nextBtn">Next ▶</button>
+  <input id="pageJump" type="number" min="1" placeholder="#">
+  <button id="zoomOut">−</button>
+  <span id="zoomLabel">100%</span>
+  <button id="zoomIn">+</button>
+  <button id="zoomReset">Fit</button>
+  <div id="spacer"></div>
+  <button id="toggleThumbs">Thumbs</button>
+</div>
+
+<div id="progress"></div>
+
+<div id="viewer" class="scrollMode">
+  <div id="stage"></div>
+</div>
+
+<div id="empty">
+  <div class="big">No comic loaded yet</div>
+  <div>Choose a folder of images, pick individual files, or auto-load panels from a URL, using the buttons above.<br>Locally loaded files stay on your device — nothing is uploaded anywhere.</div>
+  <label class="btn" for="fileInput">📂 Load a folder of images</label>
+  <button id="autoLoadBtnEmpty" class="btn" style="border:none;">🌐 Auto-load panels from URL</button>
+</div>
+
+<div id="thumbs" class="hidden"></div>
+<div id="hint"></div>
+
+<script>
+(function(){
+  const fileInput = document.getElementById('fileInput');
+  const pickFilesBtn = document.getElementById('pickFiles');
+  const autoLoadBtn = document.getElementById('autoLoadBtn');
+  const autoLoadBtnEmpty = document.getElementById('autoLoadBtnEmpty');
+  const viewer = document.getElementById('viewer');
+  const stage = document.getElementById('stage');
+  const emptyEl = document.getElementById('empty');
+  const thumbsEl = document.getElementById('thumbs');
+  const toggleThumbsBtn = document.getElementById('toggleThumbs');
+  const pageInfo = document.getElementById('pageInfo');
+  const pageJump = document.getElementById('pageJump');
+  const prevBtn = document.getElementById('prevBtn');
+  const nextBtn = document.getElementById('nextBtn');
+  const modeScrollBtn = document.getElementById('modeScroll');
+  const modeSingleBtn = document.getElementById('modeSingle');
+  const zoomInBtn = document.getElementById('zoomIn');
+  const zoomOutBtn = document.getElementById('zoomOut');
+  const zoomResetBtn = document.getElementById('zoomReset');
+  const zoomLabel = document.getElementById('zoomLabel');
+  const hint = document.getElementById('hint');
+  const progress = document.getElementById('progress');
+
+  let images = [];       // {url, name}
+  let mode = 'scroll';    // 'scroll' | 'single'
+  let current = 0;
+  let scale = 1;
+  let panX = 0, panY = 0;
+  let isPanning = false, panStartX = 0, panStartY = 0, panOriginX = 0, panOriginY = 0;
+  let imgEls = [];
+
+  // ---------- Loading files ----------
+  function naturalCompare(a, b) {
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+  }
+
+  function handleFiles(fileList) {
+    const files = Array.from(fileList).filter(f => f.type.startsWith('image/'));
+    if (!files.length) return;
+    files.sort((a, b) => naturalCompare(a.webkitRelativePath || a.name, b.webkitRelativePath || b.name));
+    // revoke old
+    images.forEach(im => URL.revokeObjectURL(im.url));
+    images = files.map(f => ({ url: URL.createObjectURL(f), name: f.name }));
+    current = 0;
+    buildStage();
+    buildThumbs();
+    emptyEl.style.display = 'none';
+    updatePageInfo();
+    goTo(0, true);
+  }
+
+  fileInput.addEventListener('change', e => handleFiles(e.target.files));
+
+  pickFilesBtn.addEventListener('click', () => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.accept = 'image/*';
+    input.multiple = true;
+    input.addEventListener('change', e => handleFiles(e.target.files));
+    input.click();
+  });
+
+  // ---------- Auto-load from numbered URL pattern ----------
+  const DEFAULT_BASE = 'https://lnerthwayiwiysxmptdw.supabase.co/storage/v1/object/public/test/panel_';
+  const DEFAULT_EXT = '.png';
+  const DEFAULT_START = 1;
+
+  function showHint(text, persistent) {
+    hint.textContent = text;
+    hint.classList.add('show');
+    if (!persistent) {
+      clearTimeout(showHint._t);
+      showHint._t = setTimeout(() => hint.classList.remove('show'), 1800);
+    }
+  }
+
+  function loadImageOnce(url) {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.onload = () => resolve(img);
+      img.onerror = () => reject(new Error('load failed'));
+      img.src = url;
+    });
+  }
+
+  async function autoLoadFromUrl(base, ext, start) {
+    // revoke any local blob urls from a previous local load
+    images.forEach(im => { if (im.url.startsWith('blob:')) URL.revokeObjectURL(im.url); });
+    images = [];
+    emptyEl.style.display = 'none';
+    stage.innerHTML = '';
+    thumbsEl.innerHTML = '';
+    imgEls = [];
+    current = 0;
+    updatePageInfo();
+
+    let i = start;
+    let consecutiveFailures = 0;
+    const MAX_CONSECUTIVE_FAILURES = 1; // stop as soon as one panel fails to load
+    const SAFETY_CAP = 5000; // just in case, avoid an infinite loop
+
+    while (consecutiveFailures < MAX_CONSECUTIVE_FAILURES && (i - start) < SAFETY_CAP) {
+      const url = `${base}${i}${ext}`;
+      showHint(`Loading panel ${i}…`, true);
+      try {
+        await loadImageOnce(url);
+        images.push({ url, name: `panel_${i}${ext}` });
+        addPanelToStage(images.length - 1);
+        addThumb(images.length - 1);
+        if (images.length === 1) {
+          updatePageInfo();
+          goTo(0, true);
+        } else {
+          updatePageInfo();
+        }
+        consecutiveFailures = 0;
+        i++;
+      } catch (err) {
+        consecutiveFailures++;
+      }
+    }
+
+    hint.classList.remove('show');
+    if (images.length) {
+      showHint(`Loaded ${images.length} panels (stopped at panel_${i}${ext})`);
+    } else {
+      showHint(`Could not load any panels — check the URL pattern`, true);
+      emptyEl.style.display = 'flex';
+    }
+    applyMode();
+  }
+
+  function promptAndAutoLoad() {
+    const base = "https://lnerthwayiwiysxmptdw.supabase.co/storage/v1/object/public/test/panel_";
+    if (base === null) return;
+    const ext = ".png";
+    const startStr = "1";
+    const start = parseInt(startStr, 10);
+    autoLoadFromUrl(base, ext, isNaN(start) ? DEFAULT_START : start);
+  }
+
+  autoLoadBtn.addEventListener('click', promptAndAutoLoad);
+  autoLoadBtnEmpty.addEventListener('click', promptAndAutoLoad);
+
+  // ---------- Building views ----------
+  function addPanelToStage(i) {
+    const im = images[i];
+    const img = document.createElement('img');
+    img.className = 'panel-img';
+    img.src = im.url;
+    img.dataset.index = i;
+    img.loading = 'lazy';
+    img.draggable = false;
+    stage.appendChild(img);
+    imgEls.push(img);
+    if (mode === 'single') img.style.display = (i === current) ? 'block' : 'none';
+  }
+
+  function addThumb(i) {
+    const im = images[i];
+    const t = document.createElement('img');
+    t.src = im.url;
+    t.dataset.index = i;
+    t.title = im.name;
+    t.addEventListener('click', () => goTo(i, true));
+    thumbsEl.appendChild(t);
+    highlightThumb();
+  }
+
+  function buildStage() {
+    stage.innerHTML = '';
+    imgEls = [];
+    images.forEach((im, i) => addPanelToStage(i));
+    applyMode();
+  }
+
+  function buildThumbs() {
+    thumbsEl.innerHTML = '';
+    images.forEach((im, i) => addThumb(i));
+    highlightThumb();
+  }
+
+  function highlightThumb() {
+    Array.from(thumbsEl.children).forEach((el, i) => {
+      el.classList.toggle('current', i === current);
+    });
+    const cur = thumbsEl.children[current];
+    if (cur) cur.scrollIntoView({ inline: 'center', block: 'nearest' });
+  }
+
+  // ---------- Mode switching ----------
+  function applyMode() {
+    if (mode === 'scroll') {
+      viewer.className = 'scrollMode';
+      stage.className = '';
+      imgEls.forEach(img => { img.style.display = 'block'; img.style.transform = ''; });
+      modeScrollBtn.classList.add('active');
+      modeSingleBtn.classList.remove('active');
+    } else {
+      viewer.className = 'singleMode';
+      stage.className = 'single';
+      imgEls.forEach((img, i) => { img.style.display = (i === current) ? 'block' : 'none'; });
+      resetZoom();
+      modeSingleBtn.classList.add('active');
+      modeScrollBtn.classList.remove('active');
+    }
+  }
+
+  modeScrollBtn.addEventListener('click', () => { mode = 'scroll'; applyMode(); goTo(current, true); });
+  modeSingleBtn.addEventListener('click', () => { mode = 'single'; applyMode(); });
+
+  // ---------- Navigation ----------
+  function goTo(i, instant) {
+    if (!images.length) return;
+    current = Math.max(0, Math.min(images.length - 1, i));
+    if (mode === 'scroll') {
+      const el = imgEls[current];
+      if (el) el.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'start' });
+    } else {
+      imgEls.forEach((img, idx) => { img.style.display = (idx === current) ? 'block' : 'none'; });
+      resetZoom();
+    }
+    updatePageInfo();
+    highlightThumb();
+  }
+
+  function updatePageInfo() {
+    pageInfo.textContent = images.length ? `${current + 1} / ${images.length}` : '0 / 0';
+    progress.style.width = images.length ? `${((current + 1) / images.length) * 100}%` : '0';
+  }
+
+  prevBtn.addEventListener('click', () => goTo(current - 1));
+  nextBtn.addEventListener('click', () => goTo(current + 1));
+  pageJump.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const n = parseInt(pageJump.value, 10);
+      if (!isNaN(n)) goTo(n - 1, true);
+      pageJump.value = '';
+    }
+  });
+
+  // Track current page while scrolling in scroll mode
+  let scrollTicking = false;
+  viewer.addEventListener('scroll', () => {
+    if (mode !== 'scroll') return;
+    if (scrollTicking) return;
+    scrollTicking = true;
+    requestAnimationFrame(() => {
+      scrollTicking = false;
+      const viewerRect = viewer.getBoundingClientRect();
+      const mid = viewerRect.top + viewerRect.height / 3;
+      let best = 0, bestDist = Infinity;
+      imgEls.forEach((img, i) => {
+        const r = img.getBoundingClientRect();
+        const dist = Math.abs(r.top - mid);
+        if (dist < bestDist) { bestDist = dist; best = i; }
+      });
+      if (best !== current) {
+        current = best;
+        updatePageInfo();
+        highlightThumb();
+      }
+    });
+  });
+
+  // ---------- Zoom & Pan (single mode) ----------
+  function applyTransform() {
+    const img = imgEls[current];
+    if (!img) return;
+    img.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+    zoomLabel.textContent = Math.round(scale * 100) + '%';
+  }
+
+  function resetZoom() {
+    scale = 1; panX = 0; panY = 0;
+    applyTransform();
+  }
+
+  function zoomBy(factor, cx, cy) {
+    const newScale = Math.max(0.2, Math.min(8, scale * factor));
+    if (cx !== undefined) {
+      // zoom toward cursor position
+      const ratio = newScale / scale;
+      panX = cx - (cx - panX) * ratio;
+      panY = cy - (cy - panY) * ratio;
+    }
+    scale = newScale;
+    applyTransform();
+  }
+
+  zoomInBtn.addEventListener('click', () => zoomBy(1.25));
+  zoomOutBtn.addEventListener('click', () => zoomBy(0.8));
+  zoomResetBtn.addEventListener('click', resetZoom);
+
+  // wheel zoom (single mode) / normal scroll (scroll mode)
+  viewer.addEventListener('wheel', e => {
+    if (mode !== 'single') return;
+    e.preventDefault();
+    const rect = viewer.getBoundingClientRect();
+    const cx = e.clientX - rect.left - rect.width / 2;
+    const cy = e.clientY - rect.top - rect.height / 2;
+    const factor = e.deltaY < 0 ? 1.12 : 0.89;
+    zoomBy(factor, cx, cy);
+  }, { passive: false });
+
+  // drag to pan (single mode)
+  stage.addEventListener('mousedown', e => {
+    if (mode !== 'single') return;
+    isPanning = true;
+    stage.classList.add('grabbing');
+    panStartX = e.clientX; panStartY = e.clientY;
+    panOriginX = panX; panOriginY = panY;
+  });
+  window.addEventListener('mousemove', e => {
+    if (!isPanning) return;
+    panX = panOriginX + (e.clientX - panStartX);
+    panY = panOriginY + (e.clientY - panStartY);
+    applyTransform();
+  });
+  window.addEventListener('mouseup', () => { isPanning = false; stage.classList.remove('grabbing'); });
+
+  // double click to reset / zoom in
+  stage.addEventListener('dblclick', e => {
+    if (mode !== 'single') return;
+    if (scale > 1.05) resetZoom();
+    else zoomBy(2);
+  });
+
+  // touch: pinch zoom + pan
+  let touchState = null;
+  stage.addEventListener('touchstart', e => {
+    if (mode !== 'single') return;
+    if (e.touches.length === 1) {
+      touchState = { type: 'pan', x: e.touches[0].clientX, y: e.touches[0].clientY, panX, panY };
+    } else if (e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      touchState = { type: 'pinch', dist: Math.hypot(dx, dy), scale };
+    }
+  }, { passive: true });
+  stage.addEventListener('touchmove', e => {
+    if (mode !== 'single' || !touchState) return;
+    if (touchState.type === 'pan' && e.touches.length === 1) {
+      panX = touchState.panX + (e.touches[0].clientX - touchState.x);
+      panY = touchState.panY + (e.touches[0].clientY - touchState.y);
+      applyTransform();
+    } else if (touchState.type === 'pinch' && e.touches.length === 2) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const dist = Math.hypot(dx, dy);
+      scale = Math.max(0.2, Math.min(8, touchState.scale * (dist / touchState.dist)));
+      applyTransform();
+    }
+  }, { passive: true });
+  stage.addEventListener('touchend', () => { touchState = null; });
+
+  // ---------- Keyboard shortcuts ----------
+  window.addEventListener('keydown', e => {
+    if (document.activeElement === pageJump) return;
+    switch (e.key) {
+      case 'ArrowRight': case 'ArrowDown': case ' ':
+        if (mode === 'single') { e.preventDefault(); goTo(current + 1); }
+        break;
+      case 'ArrowLeft': case 'ArrowUp':
+        if (mode === 'single') { e.preventDefault(); goTo(current - 1); }
+        break;
+      case '+': case '=':
+        if (mode === 'single') zoomBy(1.25);
+        break;
+      case '-': case '_':
+        if (mode === 'single') zoomBy(0.8);
+        break;
+      case '0':
+        if (mode === 'single') resetZoom();
+        break;
+      case 'f': case 'F':
+        toggleThumbsBtn.click();
+        break;
+      case 's': case 'S':
+        mode = (mode === 'scroll') ? 'single' : 'scroll';
+        applyMode();
+        if (mode === 'scroll') goTo(current, true);
+        break;
+    }
+  });
+
+  toggleThumbsBtn.addEventListener('click', () => thumbsEl.classList.toggle('hidden'));
+
+  // ---------- Drag & drop onto page ----------
+  ['dragover', 'drop'].forEach(evt => {
+    window.addEventListener(evt, e => e.preventDefault());
+  });
+  window.addEventListener('drop', e => {
+    e.preventDefault();
+    const items = e.dataTransfer.files;
+    if (items && items.length) handleFiles(items);
+  });
+
+  updatePageInfo();
+})();
+</script>
+</body>
+</html>
