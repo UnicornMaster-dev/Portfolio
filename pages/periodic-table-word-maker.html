@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Extended Periodic Word Generator</title>
+    <style>
+        :root {
+            --bg-primary: #0f172a;
+            --bg-card: #1e293b;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --error: #ef4444;
+            --success: #22c55e;
+        }
+
+        body {
+            font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background-color: var(--bg-primary);
+            color: var(--text-main);
+            margin: 0;
+            padding: 2rem 1rem;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-height: 100vh;
+            overflow-x: hidden;
+            scrollbar-color: var(--accent) var(--bg-primary);
+            scrollbar-width: thin;
+        }
+
+        * {
+            scrollbar-color: var(--accent) var(--bg-primary);
+            scrollbar-width: thin;
+        }
+
+        ::-webkit-scrollbar { width: 10px; height: 10px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb {
+            background: #0284c7;
+            border: 2px solid var(--bg-primary);
+            border-radius: 999px;
+        }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        .container {
+            max-width: 800px;
+            width: 100%;
+            box-sizing: border-box;
+            background: var(--bg-card);
+            padding: 2rem;
+            border-radius: 1rem;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            margin-top: 0;
+            font-size: 1.8rem;
+            text-align: center;
+            color: var(--accent);
+        }
+
+        .controls {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        label {
+            font-size: 0.9rem;
+            font-weight: 600;
+            color: var(--text-muted);
+            margin-bottom: 0.25rem;
+            display: block;
+        }
+
+        select, input {
+            width: 100%;
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            border: 1px solid #334155;
+            background: #0f172a;
+            color: var(--text-main);
+            font-size: 1rem;
+            box-sizing: border-box;
+        }
+
+        select:focus, input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .error-msg {
+            background: rgba(239, 68, 68, 0.1);
+            border-left: 4px solid var(--error);
+            color: #fca5a5;
+            padding: 1rem;
+            border-radius: 0.25rem;
+            margin-bottom: 1.5rem;
+            display: none;
+            font-size: 0.95rem;
+        }
+
+        .output-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1.5rem;
+        }
+
+        .word-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+            padding: 1rem;
+            background: rgba(15, 23, 42, 0.6);
+            border-radius: 0.5rem;
+            align-items: center;
+            min-width: 0;
+        }
+
+        .element-card {
+            background: linear-gradient(135deg, #1e293b, #0f172a);
+            border: 2px solid var(--accent);
+            border-radius: 0.5rem;
+            width: clamp(58px, 15vw, 70px);
+            min-width: 58px;
+            height: clamp(82px, 19vw, 90px);
+            box-sizing: border-box;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 0.5rem;
+            position: relative;
+            box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            transition: transform 180ms ease, border-color 180ms ease, box-shadow 180ms ease;
+        }
+
+        .element-card:hover,
+        .element-card:focus-visible {
+            transform: translateY(-6px) scale(1.04);
+            border-color: #7dd3fc;
+            box-shadow: 0 12px 22px -8px rgba(56, 189, 248, 0.8);
+            outline: none;
+        }
+
+        .atomic-num {
+            font-size: 0.7rem;
+            color: var(--text-muted);
+            font-weight: bold;
+        }
+
+        .atomic-weight {
+            font-size: 0.58rem;
+            color: var(--accent);
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .symbol {
+            font-size: 1.6rem;
+            font-weight: 800;
+            text-align: center;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .elem-name {
+            font-size: 0.6rem;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-muted);
+        }
+
+        .element-modal {
+            position: fixed;
+            inset: 0;
+            z-index: 10;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            padding: 1rem;
+            background: rgba(2, 6, 23, 0.78);
+        }
+
+        .element-modal.open { display: flex; }
+
+        .modal-content {
+            position: relative;
+            width: min(560px, 100%);
+            max-height: 90vh;
+            overflow-y: auto;
+            padding: 2rem;
+            border: 2px solid var(--accent);
+            border-radius: 1rem;
+            background: var(--bg-card);
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+            scrollbar-color: var(--accent) #172033;
+            scrollbar-width: thin;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 0.75rem;
+            right: 1rem;
+            border: 0;
+            background: transparent;
+            color: var(--text-muted);
+            font-size: 1.8rem;
+            cursor: pointer;
+        }
+
+        .modal-heading {
+            margin: 0 2rem 1.25rem 0;
+            color: var(--accent);
+        }
+
+        .modal-summary {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            margin-bottom: 1.25rem;
+        }
+
+        .modal-symbol {
+            font-size: 3rem;
+            font-weight: 800;
+            line-height: 1;
+            color: #fff;
+        }
+
+        .modal-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+            gap: 0.75rem;
+        }
+
+        .modal-field {
+            padding: 0.75rem;
+            border-radius: 0.5rem;
+            background: rgba(15, 23, 42, 0.7);
+            transition: transform 160ms ease, background-color 160ms ease, box-shadow 160ms ease;
+        }
+
+        .modal-field:hover {
+            transform: translateY(-3px);
+            background: rgba(30, 41, 59, 0.95);
+            box-shadow: 0 6px 14px -8px rgba(56, 189, 248, 0.8);
+        }
+
+        .modal-field strong {
+            display: block;
+            margin-bottom: 0.25rem;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+        }
+
+        .isotope-list {
+            display: grid;
+            gap: 0.4rem;
+        }
+
+        .isotope-item {
+            display: grid;
+            gap: 0.15rem;
+            padding: 0.45rem;
+            border-left: 2px solid var(--accent);
+            background: rgba(15, 23, 42, 0.45);
+            font-size: 0.8rem;
+        }
+
+        .isotope-item strong {
+            margin: 0;
+            color: var(--text-main);
+            font-size: 0.8rem;
+        }
+
+        .modal-properties {
+            margin: 1.25rem 0 0;
+            line-height: 1.5;
+            color: var(--text-muted);
+        }
+
+        @media (max-width: 600px) {
+            body { padding: 1rem 0.5rem; }
+            .container { padding: 1.25rem 0.85rem; border-radius: 0.75rem; }
+            h1 { font-size: 1.45rem; }
+            .word-row { gap: 0.5rem; padding: 0.7rem; }
+            .modal-content { padding: 1.35rem; max-height: 92vh; }
+            .modal-grid { grid-template-columns: 1fr; }
+        }
+
+        @media (max-width: 360px) {
+            .element-card { width: 54px; min-width: 54px; padding: 0.35rem; }
+            .symbol { font-size: 1.35rem; }
+            .elem-name { font-size: 0.52rem; }
+            .atomic-weight { font-size: 0.5rem; }
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <h1>Word Maker From Elements</h1>
+
+    <div class="controls">
+        <div>
+            <label for="table-select">Select Periodic Table Model</label>
+            <select id="table-select">
+                <option value="iupac">Standard IUPAC (Elements 1-118)</option>
+                <option value="pyykko">Pekka Pyykkö Extended Model (Z up to 172)</option>
+                <option value="dirac">Dirac / Fricke Quantum Model (Z up to 172)</option>
+            </select>
+        </div>
+        <div>
+            <label for="word-input">Enter phrase or words</label>
+            <input type="text" id="word-input" placeholder="e.g., Lithium Carbon Potassium Sulfur Yttrium Oxygen Uranium" value="Catalysts!">
+        </div>
+    </div>
+
+    <div id="error-box" class="error-msg"></div>
+    <div id="output" class="output-container"></div>
+</div>
+
+<div id="element-modal" class="element-modal" role="dialog" aria-modal="true" aria-labelledby="modal-title">
+    <div class="modal-content">
+        <button class="modal-close" type="button" aria-label="Close element information">&times;</button>
+        <h2 id="modal-title" class="modal-heading"></h2>
+        <div id="modal-body"></div>
+    </div>
+</div>
+
+<script>
+    const iupacElements = {
+        1:"H", 2:"He", 3:"Li", 4:"Be", 5:"B", 6:"C", 7:"N", 8:"O", 9:"F", 10:"Ne",
+        11:"Na", 12:"Mg", 13:"Al", 14:"Si", 15:"P", 16:"S", 17:"Cl", 18:"Ar", 19:"K", 20:"Ca",
+        21:"Sc", 22:"Ti", 23:"V", 24:"Cr", 25:"Mn", 26:"Fe", 27:"Co", 28:"Ni", 29:"Cu", 30:"Zn",
+        31:"Ga", 32:"Ge", 33:"As", 34:"Se", 35:"Br", 36:"Kr", 37:"Rb", 38:"Sr", 39:"Y", 40:"Zr",
+        41:"Nb", 42:"Mo", 43:"Tc", 44:"Ru", 45:"Rh", 46:"Pd", 47:"Ag", 48:"Cd", 49:"In", 50:"Sn",
+        51:"Sb", 52:"Te", 53:"I", 54:"Xe", 55:"Cs", 56:"Ba", 57:"La", 58:"Ce", 59:"Pr", 60:"Nd",
+        61:"Pm", 62:"Sm", 63:"Eu", 64:"Gd", 65:"Tb", 66:"Dy", 67:"Ho", 68:"Er", 69:"Tm", 70:"Yb",
+        71:"Lu", 72:"Hf", 73:"Ta", 74:"W", 75:"Re", 76:"Os", 77:"Ir", 78:"Pt", 79:"Au", 80:"Hg",
+        81:"Tl", 82:"Pb", 83:"Bi", 84:"Po", 85:"At", 86:"Rn", 87:"Fr", 88:"Ra", 89:"Ac", 90:"Th",
+        91:"Pa", 92:"U", 93:"Np", 94:"Pu", 95:"Am", 96:"Cm", 97:"Bk", 98:"Cf", 99:"Es", 100:"Fm",
+        101:"Md", 102:"No", 103:"Lr", 104:"Rf", 105:"Db", 106:"Sg", 107:"Bh", 108:"Hs", 109:"Mt",
+        110:"Ds", 111:"Rg", 112:"Cn", 113:"Nh", 114:"Fl", 115:"Mc", 116:"Lv", 117:"Ts", 118:"Og"
+    };
+
+    const fullNames = {
+        "H":"Hydrogen","He":"Helium","Li":"Lithium","Be":"Beryllium","B":"Boron","C":"Carbon","N":"Nitrogen","O":"Oxygen","F":"Fluorine","Ne":"Neon",
+        "Na":"Sodium","Mg":"Magnesium","Al":"Aluminum","Si":"Silicon","P":"Phosphorus","S":"Sulfur","Cl":"Chlorine","Ar":"Argon","K":"Potassium","Ca":"Calcium",
+        "Sc":"Scandium","Ti":"Titanium","V":"Vanadium","Cr":"Chromium","Mn":"Manganese","Fe":"Iron","Co":"Cobalt","Ni":"Nickel","Cu":"Copper","Zn":"Zinc",
+        "Ga":"Gallium","Ge":"Germanium","As":"Arsenic","Se":"Selenium","Br":"Bromine","Kr":"Krypton","Rb":"Rubidium","Sr":"Strontium","Y":"Yttrium","Zr":"Zirconium",
+        "Nb":"Niobium","Mo":"Molybdenum","Tc":"Technetium","Ru":"Ruthenium","Rh":"Rhodium","Pd":"Palladium","Ag":"Silver","Cd":"Cadmium","In":"Indium","Sn":"Tin",
+        "Sb":"Antimony","Te":"Tellurium","I":"Iodine","Xe":"Xenon","Cs":"Cesium","Ba":"Barium","La":"Lanthanum","Ce":"Cerium","Pr":"Praseodymium","Nd":"Neodymium",
+        "Pm":"Promethium","Sm":"Smandium","Eu":"Europium","Gd":"Gadolinium","Tb":"Terbium","Dy":"Dysprosium","Ho":"Holmium","Er":"Erbium","Tm":"Thulium","Yb":"Ytterbium",
+        "Lu":"Lutetium","Hf":"Hafnium","Ta":"Tantalum","W":"Tungsten","Re":"Rhenium","Os":"Osmium","Ir":"Iridium","Pt":"Platinum","Au":"Gold","Hg":"Mercury",
+        "Tl":"Thallium","Pb":"Lead","Bi":"Bismuth","Po":"Polonium","At":"Astatine","Rn":"Radon","Fr":"Francium","Ra":"Radium","Ac":"Actinium","Th":"Thorium",
+        "Pa":"Protactinium","U":"Uranium","Np":"Neptunium","Pu":"Plutonium","Am":"Americium","Cm":"Curium","Bk":"Berkelium","Cf":"Californium","Es":"Einsteinium","Fm":"Fermium",
+        "Md":"Mendelevium","No":"Nobelium","Lr":"Lawrencium","Rf":"Rutherfordium","Db":"Dubnium","Sg":"Seaborgium","Bh":"Bohrium","Hs":"Hassium","Mt":"Meitnerium",
+        "Ds":"Darmstadtium","Rg":"Roentgenium","Cn":"Copernicium","Nh":"Nihonium","Fl":"Flerovium","Mc":"Moscovium","Lv":"Livermorium","Ts":"Tennessine","Og":"Oganesson"
+    };
+
+    // Standard atomic weights in unified atomic mass units (u). Bracketed
+    // values are the mass numbers of the longest-lived isotope for elements
+    // that have no naturally occurring isotopes with a standard atomic weight.
+    const atomicWeights = {
+        1:"1.008",2:"4.0026",3:"6.94",4:"9.0122",5:"10.81",6:"12.011",7:"14.007",8:"15.999",9:"18.998",10:"20.180",
+        11:"22.990",12:"24.305",13:"26.982",14:"28.085",15:"30.974",16:"32.06",17:"35.45",18:"39.948",19:"39.098",20:"40.078",
+        21:"44.956",22:"47.867",23:"50.942",24:"51.996",25:"54.938",26:"55.845",27:"58.933",28:"58.693",29:"63.546",30:"65.38",
+        31:"69.723",32:"72.630",33:"74.922",34:"78.971",35:"79.904",36:"83.798",37:"85.468",38:"87.62",39:"88.906",40:"91.224",
+        41:"92.906",42:"95.95",43:"[98]",44:"101.07",45:"102.91",46:"106.42",47:"107.87",48:"112.41",49:"114.82",50:"118.71",
+        51:"121.76",52:"127.60",53:"126.90",54:"131.29",55:"132.91",56:"137.33",57:"138.91",58:"140.12",59:"140.91",60:"144.24",
+        61:"[145]",62:"150.36",63:"151.96",64:"157.25",65:"158.93",66:"162.50",67:"164.93",68:"167.26",69:"168.93",70:"173.05",
+        71:"174.97",72:"178.49",73:"180.95",74:"183.84",75:"186.21",76:"190.23",77:"192.22",78:"195.08",79:"196.97",80:"200.59",
+        81:"204.38",82:"207.2",83:"208.98",84:"[209]",85:"[210]",86:"[222]",87:"[223]",88:"[226]",89:"[227]",90:"232.04",
+        91:"231.04",92:"238.03",93:"[237]",94:"[244]",95:"[243]",96:"[247]",97:"[247]",98:"[251]",99:"[252]",100:"[257]",
+        101:"[258]",102:"[259]",103:"[266]",104:"[267]",105:"[268]",106:"[269]",107:"[270]",108:"[277]",109:"[278]",110:"[281]",
+        111:"[282]",112:"[285]",113:"[286]",114:"[289]",115:"[290]",116:"[293]",117:"[294]",118:"[294]"
+    };
+
+    const elementData = {
+        H:{ melting:"−259.16 °C", boiling:"−252.87 °C", year:"1766", discoveredBy:"Henry Cavendish", properties:"Colorless, highly flammable diatomic gas; the lightest element.", classification:"Nonmetal" },
+        He:{ melting:"−272.20 °C", boiling:"−268.93 °C", year:"1868", discoveredBy:"Pierre Janssen and Norman Lockyer", properties:"Colorless, odorless, inert noble gas with very low density.", classification:"Noble gas" },
+        C:{ melting:"3,550 °C (sublimes)", boiling:"4,027 °C", year:"Ancient", discoveredBy:"Known since antiquity", properties:"Nonmetal with carbon allotropes including diamond and graphite; forms an enormous range of compounds.", classification:"Nonmetal" },
+        N:{ melting:"−210.00 °C", boiling:"−195.79 °C", year:"1772", discoveredBy:"Daniel Rutherford", properties:"Colorless diatomic gas; relatively inert and a major component of Earth’s atmosphere.", classification:"Nonmetal" },
+        O:{ melting:"−218.79 °C", boiling:"−182.95 °C", year:"1774", discoveredBy:"Joseph Priestley and Carl Wilhelm Scheele", properties:"Reactive diatomic gas that supports combustion and is essential for aerobic respiration.", classification:"Nonmetal" },
+        Na:{ melting:"97.79 °C", boiling:"883 °C", year:"1807", discoveredBy:"Humphry Davy", properties:"Soft, reactive alkali metal; reacts vigorously with water and forms +1 ions.", classification:"Alkali metal" },
+        Cl:{ melting:"−101.5 °C", boiling:"−34.04 °C", year:"1774", discoveredBy:"Carl Wilhelm Scheele", properties:"Greenish-yellow, toxic halogen gas; a strong oxidizing agent.", classification:"Halogen" },
+        K:{ melting:"63.38 °C", boiling:"759 °C", year:"1807", discoveredBy:"Humphry Davy", properties:"Soft, very reactive alkali metal that forms +1 ions.", classification:"Alkali metal" },
+        Fe:{ melting:"1,538 °C", boiling:"2,862 °C", year:"Ancient", discoveredBy:"Known since antiquity", properties:"Malleable ferromagnetic transition metal; readily forms iron oxides.", classification:"Transition metal" },
+        Cu:{ melting:"1,084.62 °C", boiling:"2,562 °C", year:"Ancient", discoveredBy:"Known since antiquity", properties:"Ductile reddish metal with excellent electrical and thermal conductivity.", classification:"Transition metal" },
+        Au:{ melting:"1,064.18 °C", boiling:"2,856 °C", year:"Ancient", discoveredBy:"Known since antiquity", properties:"Dense, soft, corrosion-resistant yellow metal; highly malleable and chemically unreactive.", classification:"Transition metal" },
+        U:{ melting:"1,132.2 °C", boiling:"4,131 °C", year:"1789", discoveredBy:"Martin Heinrich Klaproth", properties:"Dense, radioactive actinide metal; undergoes nuclear fission and forms several oxidation states." , classification:"Actinide" }
+    };
+
+    const classificationSets = {
+        "Alkali metal": new Set(["Li", "Na", "K", "Rb", "Cs", "Fr"]),
+        "Alkaline earth metal": new Set(["Be", "Mg", "Ca", "Sr", "Ba", "Ra"]),
+        "Halogen": new Set(["F", "Cl", "Br", "I", "At", "Ts"]),
+        "Noble gas": new Set(["He", "Ne", "Ar", "Kr", "Xe", "Rn", "Og"]),
+        "Lanthanide": new Set(["La", "Ce", "Pr", "Nd", "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu"]),
+        "Actinide": new Set(["Ac", "Th", "Pa", "U", "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"])
+    };
+
+    function getElementClassification(symbol, z) {
+        for (const [classification, symbols] of Object.entries(classificationSets)) {
+            if (symbols.has(symbol)) return classification;
+        }
+        if ((z >= 21 && z <= 30) || (z >= 39 && z <= 48) || (z >= 72 && z <= 80) || (z >= 104 && z <= 112)) return 'Transition metal';
+        if (z >= 84) return 'Post-transition / radioactive metal';
+        return 'Main-group element';
+    }
+
+    function escapeHtml(value) {
+        return String(value ?? '—').replace(/[&<>"']/g, char => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#039;' }[char]));
+    }
+
+    function formatApiLabel(key) {
+        return key.replace(/_/g, ' ').replace(/\b\w/g, char => char.toUpperCase());
+    }
+
+    function formatApiValue(key, value) {
+        if (key === 'isotopes' && Array.isArray(value)) {
+            if (!value.length) return 'No isotope data available.';
+            return `<div class="isotope-list">${value.map(isotope => `
+                <div class="isotope-item">
+                    <strong>${escapeHtml(isotope.mass_number ? `Mass number ${isotope.mass_number}` : 'Unknown isotope')}</strong>
+                    <span>${isotope.stable ? 'Stable' : 'Radioactive'}</span>
+                    ${isotope.abundance != null ? `<span>Abundance: ${escapeHtml(`${isotope.abundance * 100}%`)}</span>` : ''}
+                    ${isotope.half_life ? `<span>Half-life: ${escapeHtml(isotope.half_life)}</span>` : ''}
+                </div>`).join('')}</div>`;
+        }
+        if (Array.isArray(value) || typeof value === 'object') return escapeHtml(JSON.stringify(value, null, 2));
+        return escapeHtml(value);
+    }
+
+    function renderElementDetails(elem, apiData) {
+        const name = fullNames[elem.symbol] || 'Hypothetical superheavy element';
+        const data = elementData[elem.symbol] || {};
+        const fallback = 'Data not established for this element.';
+        const api = apiData || {};
+        const localFields = [
+            ['Melting point', api.melting_point ? `${api.melting_point} K` : data.melting || fallback],
+            ['Boiling point', api.boiling_point ? `${api.boiling_point} K` : data.boiling || fallback],
+            ['Year discovered', api.discovery_year || data.year || fallback],
+            ['Discovered by', api.discovered_by || data.discoveredBy || fallback],
+            ['Classification', api.category || data.classification || getElementClassification(elem.symbol, elem.z)]
+        ];
+        const apiFields = Object.entries(api)
+            .filter(([key]) => !['id', 'atomic_number', 'symbol', 'name', 'melting_point', 'boiling_point', 'discovered_by', 'discovery_year', 'category'].includes(key))
+            .map(([key, value]) => {
+                if (value === null || value === '' || value === undefined) return '';
+                return `<div class="modal-field"><strong>${escapeHtml(formatApiLabel(key))}</strong>${formatApiValue(key, value)}</div>`;
+            }).join('');
+        document.getElementById('modal-body').innerHTML = `
+            <div class="modal-summary"><div class="modal-symbol">${escapeHtml(api.symbol || elem.symbol)}</div><div>Atomic number: <strong>${escapeHtml(api.atomic_number || elem.z)}</strong><br>Atomic weight: <strong>${escapeHtml(api.atomic_mass || atomicWeights[elem.z] || 'Not established')} u</strong></div></div>
+            <div class="modal-grid">${localFields.map(([label, value]) => `<div class="modal-field"><strong>${escapeHtml(label)}</strong>${escapeHtml(value)}</div>`).join('')}${apiFields}</div>
+            <p class="modal-properties"><strong>Summary:</strong> ${escapeHtml(api.summary || data.properties || 'Detailed chemical properties are not established for this element.')}</p>
+            ${api.description ? `<p class="modal-properties"><strong>Description:</strong> ${escapeHtml(api.description)}</p>` : ''}
+            ${api.uses ? `<p class="modal-properties"><strong>Uses:</strong> ${escapeHtml(api.uses)}</p>` : ''}
+            <small style="color: var(--text-muted);">Data supplied by <a href="https://periodictableofelements.org/api/" target="_blank" rel="noopener">PeriodicTableOfElements.org API</a></small>
+        `;
+    }
+
+    async function openElementModal(elem) {
+        const name = fullNames[elem.symbol] || 'Hypothetical superheavy element';
+        document.getElementById('modal-title').textContent = `${name} (${elem.symbol})`;
+        document.getElementById('modal-body').innerHTML = '<p class="modal-properties">Loading element information…</p>';
+        document.getElementById('element-modal').classList.add('open');
+        try {
+            const response = await fetch(`https://api.periodictableofelements.org/elements/${elem.z}/`, { headers: { Accept: 'application/json' } });
+            if (!response.ok) throw new Error(`API request failed (${response.status})`);
+            renderElementDetails(elem, await response.json());
+        } catch (error) {
+            renderElementDetails(elem, null);
+            document.getElementById('modal-body').insertAdjacentHTML('afterbegin', '<p style="color: var(--text-muted);">Live API data is unavailable; showing local element information.</p>');
+        }
+    }
+
+    function closeElementModal() {
+        document.getElementById('element-modal').classList.remove('open');
+    }
+
+    const pyykkoExtensions = {
+        119:"Uue", 120:"Ubn", 121:"Ubu", 122:"Ube", 123:"Ubt", 124:"Ubq", 125:"Ubp", 126:"Ubh", 127:"Ubs", 128:"Ubo",
+        129:"Ube", 130:"Utn", 131:"Utu", 132:"Utb", 133:"Utt", 134:"Utq", 135:"Utp", 136:"Uth", 137:"Uts", 138:"Uto",
+        139:"Ute", 140:"Uqn", 141:"Uqu", 142:"Uqb", 143:"Uqt", 144:"Uqq", 145:"Uqp", 146:"Uqh", 147:"Uqs", 148:"Uqo",
+        149:"Uqe", 150:"Upt", 151:"Upu", 152:"Upb", 153:"Upt", 154:"Upq", 155:"Upp", 156:"Uph", 157:"Ups", 158:"Upo",
+        159:"Upe", 160:"Uhn", 161:"Uhu", 162:"Uhb", 163:"Uht", 164:"Uhq", 165:"Uhp", 166:"Uhh", 167:"Uhs", 168:"Uho",
+        169:"Uhe", 170:"Usn", 171:"Usu", 172:"Usb"
+    };
+
+    const diracExtensions = { ...pyykkoExtensions, 121: "Ubu", 140: "Uqn" };
+
+    function getElementsMap(model) {
+        let map = { ...iupacElements };
+        if (model === 'pyykko') map = { ...map, ...pyykkoExtensions };
+        if (model === 'dirac') map = { ...map, ...diracExtensions };
+
+        const reverse = {};
+        for (const [z, sym] of Object.entries(map)) {
+            reverse[sym.toLowerCase()] = { symbol: sym, z: parseInt(z) };
+        }
+        return reverse;
+    }
+
+    function parseWord(word, elementsMap) {
+        const cleanWord = word.toLowerCase().replace(/[^a-z]/g, '');
+        if (!cleanWord) return [];
+
+        const memo = new Array(cleanWord.length + 1).fill(null);
+
+        function backtrack(startIndex) {
+            if (startIndex === cleanWord.length) return [];
+            if (memo[startIndex] !== null) return memo[startIndex];
+
+            for (let len = 1; len <= 3; len++) {
+                if (startIndex + len <= cleanWord.length) {
+                    const chunk = cleanWord.substring(startIndex, startIndex + len);
+                    if (elementsMap[chunk]) {
+                        const nextResult = backtrack(startIndex + len);
+                        if (nextResult !== false) {
+                            const currentElem = elementsMap[chunk];
+                            memo[startIndex] = [currentElem, ...nextResult];
+                            return memo[startIndex];
+                        }
+                    }
+                }
+            }
+            memo[startIndex] = false;
+            return false;
+        }
+
+        return backtrack(0);
+    }
+
+    function updateLayout() {
+        const model = document.getElementById('table-select').value;
+        const inputStr = document.getElementById('word-input').value;
+        const errorBox = document.getElementById('error-box');
+        const output = document.getElementById('output');
+
+        errorBox.style.display = 'none';
+        output.innerHTML = '';
+
+        if (!inputStr.trim()) return;
+
+        const currentMap = getElementsMap(model);
+        const words = inputStr.split(/\s+/);
+
+        for (const word of words) {
+            if (!word) continue;
+            const clean = word.replace(/[^A-Za-z]/g, '');
+            if (!clean) continue;
+
+            const matchedArr = parseWord(clean, currentMap);
+
+            if (matchedArr === false || matchedArr.length === 0) {
+                errorBox.innerText = `The word "${word}" cannot be broken down into element symbols using the selected periodic model rules.`;
+                errorBox.style.display = 'block';
+                output.innerHTML = '';
+                break;
+            }
+
+            const row = document.createElement('div');
+            row.className = 'word-row';
+
+            matchedArr.forEach(elem => {
+                const card = document.createElement('div');
+                card.className = 'element-card';
+                card.setAttribute('role', 'button');
+                card.setAttribute('tabindex', '0');
+
+                const name = fullNames[elem.symbol] || `Superheavy Elem`;
+                const weight = atomicWeights[elem.z] || '—';
+
+                card.innerHTML = `
+                <div class="atomic-num">${elem.z}</div>
+                <div class="symbol">${elem.symbol}</div>
+                <div class="atomic-weight" title="Average atomic weight">${weight} u</div>
+                <div class="elem-name" title="${name}">${name}</div>
+            `;
+                row.appendChild(card);
+                card.addEventListener('click', () => openElementModal(elem));
+                card.addEventListener('keydown', event => {
+                    if (event.key === 'Enter' || event.key === ' ') {
+                        event.preventDefault();
+                        openElementModal(elem);
+                    }
+                });
+            });
+
+            output.appendChild(row);
+        }
+    }
+
+    document.getElementById('word-input').addEventListener('input', updateLayout);
+    document.getElementById('table-select').addEventListener('change', updateLayout);
+    document.querySelector('.modal-close').addEventListener('click', closeElementModal);
+    document.getElementById('element-modal').addEventListener('click', event => {
+        if (event.target.id === 'element-modal') closeElementModal();
+    });
+    document.addEventListener('keydown', event => {
+        if (event.key === 'Escape') closeElementModal();
+    });
+    window.addEventListener('DOMContentLoaded', updateLayout);
+</script>
+
+</body>
+</html>
