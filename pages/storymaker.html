@@ -1,0 +1,2060 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Node Story Maker</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            overflow: hidden;
+            background: #1e1e1e;
+            color: #fff;
+        }
+
+        #toolbar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 60px;
+            background: #2d2d2d;
+            border-bottom: 2px solid #444;
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            gap: 10px;
+            z-index: 1000;
+        }
+
+        .toolbar-btn {
+            padding: 8px 16px;
+            background: #007acc;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 14px;
+        }
+
+        .toolbar-btn:hover {
+            background: #005a9e;
+        }
+
+        .toolbar-btn.secondary {
+            background: #6f42c1;
+        }
+
+        .toolbar-divider {
+            width: 1px;
+            height: 30px;
+            background: #444;
+            margin: 0 10px;
+        }
+
+        #canvas-container {
+            position: fixed;
+            top: 60px;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            overflow: hidden;
+            cursor: grab;
+        }
+
+        #canvas-container.grabbing {
+            cursor: grabbing;
+        }
+
+        #canvas {
+            position: absolute;
+            top: 0;
+            left: 0;
+            transform-origin: 0 0;
+            width: 100000px;
+            height: 100000px;
+        }
+
+        .node {
+            position: absolute;
+            background: #2d2d2d;
+            border: 2px solid #007acc;
+            border-radius: 8px;
+            min-width: 180px;
+            padding: 10px;
+            cursor: move;
+            user-select: none;
+        }
+
+        .node.selected {
+            border-color: #ffa500;
+            box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+        }
+
+        .node-header {
+            font-weight: bold;
+            margin-bottom: 8px;
+            padding-bottom: 5px;
+            border-bottom: 1px solid #444;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .node-content {
+            font-size: 14px;
+            margin: 5px 0;
+        }
+
+        .node-port {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #007acc;
+            border: 2px solid #fff;
+            border-radius: 50%;
+            cursor: crosshair;
+        }
+
+        .node-port.input {
+            left: -6px;
+            top: 50%;
+            transform: translateY(-50%);
+        }
+
+        .node-port.output {
+            bottom: -6px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: #28a745;
+        }
+
+        .node-port.output-single {
+            left: 50%;
+            transform: translateX(-50%);
+        }
+
+        svg {
+            position: absolute;
+            top: 0;
+            left: 0;
+            pointer-events: none;
+            z-index: -1;
+            width: 100000px;
+            height: 100000px;
+            overflow: visible;
+        }
+
+        .connection-line {
+            pointer-events: stroke;
+            cursor: pointer;
+        }
+
+        .connection-remove {
+            cursor: pointer;
+            pointer-events: all;
+        }
+
+        #preview-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0, 0, 0, .75);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        #preview-modal.open { display: flex; }
+        .preview-window {
+            width: min(760px, 96vw);
+            height: min(820px, 92vh);
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .preview-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 16px;
+            background: #2d2d2d;
+        }
+        #preview-frame { flex: 1; width: 100%; border: 0; background: white; }
+
+        #properties-panel {
+            position: fixed;
+            left: -350px;
+            top: 60px;
+            bottom: 0;
+            width: 350px;
+            background: #2d2d2d;
+            border-right: 2px solid #444;
+            padding: 20px;
+            overflow-y: auto;
+            transition: left 0.3s;
+            z-index: 999;
+        }
+
+        #properties-panel.open {
+            left: 0;
+        }
+
+        .property-group {
+            margin-bottom: 20px;
+        }
+
+        .property-label {
+            display: block;
+            margin-bottom: 5px;
+            font-size: 12px;
+            color: #aaa;
+        }
+
+        .property-input {
+            width: 100%;
+            padding: 8px;
+            background: #1e1e1e;
+            border: 1px solid #444;
+            border-radius: 4px;
+            color: #fff;
+            font-size: 14px;
+        }
+
+        .property-textarea {
+            min-height: 80px;
+            resize: vertical;
+            font-family: monospace;
+        }
+
+        .btn-small {
+            padding: 5px 10px;
+            background: #444;
+            color: white;
+            border: none;
+            border-radius: 3px;
+            cursor: pointer;
+            font-size: 12px;
+            margin-top: 5px;
+        }
+
+        .btn-small:hover {
+            background: #555;
+        }
+
+        .btn-remove {
+            background: #dc3545;
+        }
+
+        .btn-remove:hover {
+            background: #c82333;
+        }
+
+        .choice-item {
+            background: #1e1e1e;
+            padding: 10px;
+            margin-bottom: 10px;
+            border-radius: 4px;
+            border: 1px solid #444;
+        }
+
+        .zoom-controls {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            display: flex;
+            gap: 10px;
+            z-index: 998;
+        }
+
+        .zoom-btn {
+            width: 40px;
+            height: 40px;
+            background: #2d2d2d;
+            border: 2px solid #444;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .zoom-btn:hover {
+            background: #444;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="toolbar">
+        <button class="toolbar-btn" onmousedown="startNodeDrag('start', event)">+ Start</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('text', event)">+ Text</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('button', event)">+ Buttons</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('image', event)">+ Image</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('javascript', event)">+ JavaScript</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('random', event)">+ Random</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('input', event)">+ User Input</button>
+        <button class="toolbar-btn" onmousedown="startNodeDrag('logic', event)">+ Logic</button>
+        <div class="toolbar-divider"></div>
+        <button class="toolbar-btn" onclick="exportStory()">Export HTML</button>
+        <button class="toolbar-btn secondary" onclick="previewStory()">Preview</button>
+        <button class="toolbar-btn" onclick="saveProject()">Save JSON</button>
+        <button class="toolbar-btn" onclick="loadProject()">Load JSON</button>
+    </div>
+
+    <div id="canvas-container">
+        <div id="canvas">
+            <svg id="connections-svg"></svg>
+        </div>
+    </div>
+
+    <div id="properties-panel">
+        <h3 style="margin-bottom: 15px;">Properties</h3>
+        <div id="properties-content">
+            Select a node to edit its properties
+        </div>
+    </div>
+
+    <div class="zoom-controls">
+        <button class="zoom-btn" onclick="zoomIn()">+</button>
+        <button class="zoom-btn" onclick="zoomOut()">−</button>
+        <button class="zoom-btn" onclick="resetZoom()" style="font-size: 16px;">⊙</button>
+    </div>
+
+    <div id="preview-modal" role="dialog" aria-modal="true" aria-label="Story preview">
+        <div class="preview-window">
+            <div class="preview-header"><strong>Story Preview</strong><button class="btn-small" onclick="closePreview()">Close</button></div>
+            <iframe id="preview-frame" title="Interactive story preview"></iframe>
+        </div>
+    </div>
+
+    <script>
+        // Core state
+        let nodes = [];
+        let connections = [];
+        let selectedNode = null;
+        let nextNodeId = 1;
+        let nextConnectionId = 1;
+
+        // Canvas state
+        let scale = 1;
+        let panX = 0;
+        let panY = 0;
+        let isPanning = false;
+        let lastMouseX = 0;
+        let lastMouseY = 0;
+
+        // Connection state
+        let isConnecting = false;
+        let connectionStart = null;
+        let tempLine = null;
+
+        const canvas = document.getElementById('canvas');
+        const canvasContainer = document.getElementById('canvas-container');
+        const svg = document.getElementById('connections-svg');
+        const propertiesPanel = document.getElementById('properties-panel');
+
+        // Initialize
+        updateCanvasTransform();
+
+        // Node creation with drag-to-place
+        let pendingNodeType = null;
+        let isPlacingNode = false;
+        let ghostNode = null;
+
+        function addNode(type) {
+            // Don't use onclick, instead use mousedown on buttons
+            return false;
+        }
+
+        function startNodeDrag(type, e) {
+            e.preventDefault();
+            pendingNodeType = type;
+            isPlacingNode = true;
+
+            // Create ghost node that follows cursor
+            ghostNode = document.createElement('div');
+            ghostNode.className = 'node';
+            ghostNode.style.position = 'fixed';
+            ghostNode.style.opacity = '0.7';
+            ghostNode.style.pointerEvents = 'none';
+            ghostNode.style.zIndex = '10000';
+            ghostNode.innerHTML = `<div class="node-header">${getNodeTypeName(type)}</div><div class="node-content">New ${type}</div>`;
+            document.body.appendChild(ghostNode);
+
+            updateGhostPosition(e);
+        }
+
+        function updateGhostPosition(e) {
+            if (ghostNode) {
+                ghostNode.style.left = (e.clientX - 90) + 'px';
+                ghostNode.style.top = (e.clientY - 30) + 'px';
+            }
+        }
+
+        function createNodeAt(type, x, y) {
+            const node = {
+                id: nextNodeId++,
+                type: type,
+                x: x,
+                y: y,
+                data: getDefaultNodeData(type)
+            };
+
+            nodes.push(node);
+            renderNode(node);
+        }
+
+        function getDefaultNodeData(type) {
+            switch (type) {
+                case 'start':
+                    return { label: 'Start' };
+                case 'text':
+                    return { text: 'Enter your text here...' };
+                case 'button':
+                    return {
+                        text: 'Question text',
+                        choices: [
+                            { label: 'Choice 1', text: '' },
+                            { label: 'Choice 2', text: '' }
+                        ],
+                        variable: 'var_' + Date.now()
+                    };
+                case 'image':
+                    return { base64: '', alt: 'Image' };
+                case 'javascript':
+                    return { code: '// Your JavaScript code here' };
+                case 'random':
+                    return {
+                        outputs: [
+                            { label: 'Path 1', chance: 50 },
+                            { label: 'Path 2', chance: 50 }
+                        ],
+                        variable: 'var_' + Date.now()
+                    };
+                case 'input':
+                    return {
+                        prompt: 'Enter your response:',
+                        variable: 'userInput'
+                    };
+                case 'logic':
+                    return {
+                        variable: 'var_' + Date.now(),
+                        condition: 'equals',
+                        value: ''
+                    };
+                default:
+                    return {};
+            }
+        }
+
+        function renderNode(node) {
+            const nodeEl = document.createElement('div');
+            nodeEl.className = 'node';
+            nodeEl.id = `node-${node.id}`;
+            nodeEl.style.left = node.x + 'px';
+            nodeEl.style.top = node.y + 'px';
+
+            // Header
+            const header = document.createElement('div');
+            header.className = 'node-header';
+            header.textContent = getNodeTypeName(node.type);
+            nodeEl.appendChild(header);
+
+            // Content
+            const content = document.createElement('div');
+            content.className = 'node-content';
+            content.textContent = getNodePreview(node);
+            nodeEl.appendChild(content);
+
+            // Input port
+            if (node.type !== 'start') {
+                const inputPort = document.createElement('div');
+                inputPort.className = 'node-port input';
+                inputPort.dataset.nodeId = node.id;
+                inputPort.dataset.portType = 'input';
+                inputPort.addEventListener('mousedown', startConnection);
+                inputPort.addEventListener('mouseup', endConnection);
+                nodeEl.appendChild(inputPort);
+            }
+
+            // Node interactions
+            nodeEl.addEventListener('mousedown', (e) => {
+                if (e.target.classList.contains('node-port')) return;
+                startDragging(e, node);
+            });
+
+            nodeEl.addEventListener('click', (e) => {
+                if (e.target.classList.contains('node-port')) return;
+                selectNode(node);
+            });
+
+            // Append to DOM first
+            canvas.appendChild(nodeEl);
+
+            // Output ports - add after node is in DOM so height is calculated
+            const outputCount = getOutputCount(node);
+
+            // Adjust node height for button nodes with multiple outputs
+            if (node.type === 'button' && outputCount > 1) {
+                const minHeight = 60 + (outputCount - 1) * 40;
+                nodeEl.style.minHeight = minHeight + 'px';
+            }
+            if (node.type === 'random' && outputCount > 1) {
+                const minHeight = 60 + (outputCount - 1) * 40;
+                nodeEl.style.minHeight = minHeight + 'px';
+            }
+
+            // Force reflow to get accurate height
+            const actualHeight = nodeEl.offsetHeight;
+
+            for (let i = 0; i < outputCount; i++) {
+                const outputPort = document.createElement('div');
+                outputPort.className = 'node-port output';
+                outputPort.dataset.nodeId = node.id;
+                outputPort.dataset.portType = 'output';
+                outputPort.dataset.portIndex = i;
+
+                if (outputCount === 1) {
+                    outputPort.classList.add('output-single');
+                } else {
+                    // Spread branching outputs across the bottom for vertical flow.
+                    const spacing = 100 / (outputCount + 1);
+                    outputPort.style.left = spacing * (i + 1) + '%';
+                    outputPort.style.bottom = '-6px';
+                }
+
+                outputPort.addEventListener('mousedown', startConnection);
+                outputPort.addEventListener('mouseup', endConnection);
+                nodeEl.appendChild(outputPort);
+            }
+        }
+
+        function getNodeTypeName(type) {
+            const names = {
+                'start': 'START',
+                'text': 'TEXT',
+                'button': 'BUTTONS',
+                'image': 'IMAGE',
+                'javascript': 'JAVASCRIPT',
+                'random': 'RANDOM CHANCE',
+                'input': 'USER INPUT',
+                'logic': 'LOGIC CHECK'
+            };
+            return names[type] || type.toUpperCase();
+        }
+
+        function getNodePreview(node) {
+            switch (node.type) {
+                case 'start':
+                    return 'Story Start';
+                case 'text':
+                    return node.data.text.substring(0, 50) + (node.data.text.length > 50 ? '...' : '');
+                case 'button':
+                    return `${node.data.choices.length} choices`;
+                case 'image':
+                    return 'Image display';
+                case 'javascript':
+                    return 'Run script';
+                case 'random':
+                    return `${node.data.outputs.length} paths`;
+                case 'input':
+                    return `Save to: ${node.data.variable}`;
+                case 'logic':
+                    return `If ${node.data.variable} ${node.data.condition} ${node.data.value}`;
+                default:
+                    return '';
+            }
+        }
+
+        function getOutputCount(node) {
+            switch (node.type) {
+                case 'button':
+                    return node.data.choices.length;
+                case 'random':
+                    return node.data.outputs.length;
+                case 'logic':
+                    return 2;
+                default:
+                    return 1;
+            }
+        }
+
+        function updateNodeDisplay(node) {
+            const nodeEl = document.getElementById(`node-${node.id}`);
+            if (!nodeEl) return;
+
+            // Remove old ports
+            nodeEl.querySelectorAll('.node-port.output').forEach(p => p.remove());
+
+            // Update content
+            const content = nodeEl.querySelector('.node-content');
+            content.textContent = getNodePreview(node);
+
+            // Get output count first
+            const outputCount = getOutputCount(node);
+
+            // Adjust node height for button nodes with multiple outputs
+            if (node.type === 'button' && outputCount > 1) {
+                const minHeight = 60 + (outputCount - 1) * 40;
+                nodeEl.style.minHeight = minHeight + 'px';
+            } else if (node.type === 'random' && outputCount > 1) {
+                const minHeight = 60 + (outputCount - 1) * 40;
+                nodeEl.style.minHeight = minHeight + 'px';
+            } else {
+                nodeEl.style.minHeight = '';
+            }
+
+            // Force reflow to get accurate height
+            const actualHeight = nodeEl.offsetHeight;
+
+            // Add new output ports
+            for (let i = 0; i < outputCount; i++) {
+                const outputPort = document.createElement('div');
+                outputPort.className = 'node-port output';
+                outputPort.dataset.nodeId = node.id;
+                outputPort.dataset.portType = 'output';
+                outputPort.dataset.portIndex = i;
+
+                if (outputCount === 1) {
+                    outputPort.classList.add('output-single');
+                } else {
+                    const spacing = 100 / (outputCount + 1);
+                    outputPort.style.left = spacing * (i + 1) + '%';
+                    outputPort.style.bottom = '-6px';
+                }
+
+                outputPort.addEventListener('mousedown', startConnection);
+                outputPort.addEventListener('mouseup', endConnection);
+                nodeEl.appendChild(outputPort);
+            }
+
+            redrawConnections();
+        }
+
+        // Node dragging
+        let draggedNode = null;
+        let dragOffsetX = 0;
+        let dragOffsetY = 0;
+
+        function startDragging(e, node) {
+            if (e.button !== 0) return;
+            draggedNode = node;
+            const nodeEl = document.getElementById(`node-${node.id}`);
+            const rect = nodeEl.getBoundingClientRect();
+            dragOffsetX = (e.clientX - rect.left) / scale;
+            dragOffsetY = (e.clientY - rect.top) / scale;
+            e.preventDefault();
+        }
+
+        document.addEventListener('mousemove', (e) => {
+            if (draggedNode) {
+                const x = (e.clientX - panX) / scale - dragOffsetX;
+                const y = (e.clientY - panY - 60) / scale - dragOffsetY;
+
+                draggedNode.x = x;
+                draggedNode.y = y;
+
+                const nodeEl = document.getElementById(`node-${draggedNode.id}`);
+                nodeEl.style.left = x + 'px';
+                nodeEl.style.top = y + 'px';
+
+                redrawConnections();
+            } else if (isConnecting && tempLine) {
+                updateTempLine(e);
+            } else if (isPlacingNode && ghostNode) {
+                updateGhostPosition(e);
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            draggedNode = null;
+        });
+
+        // Node selection
+        function selectNode(node) {
+            selectedNode = node;
+
+            // Update UI
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+            document.getElementById(`node-${node.id}`).classList.add('selected');
+
+            // Show properties panel
+            showProperties(node);
+        }
+
+        // Canvas transform
+        function updateCanvasTransform() {
+            canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+            updateSvgSize();
+        }
+
+        function updateSvgSize() {
+            const width = window.innerWidth * 4 / scale;
+            const height = window.innerHeight * 4 / scale;
+            svg.setAttribute('width', width);
+            svg.setAttribute('height', height);
+        }
+
+        // Zoom controls
+        function zoomIn() {
+            scale = Math.min(scale * 1.2, 3);
+            updateCanvasTransform();
+            redrawConnections();
+        }
+
+        function zoomOut() {
+            scale = Math.max(scale / 1.2, 0.3);
+            updateCanvasTransform();
+            redrawConnections();
+        }
+
+        function resetZoom() {
+            scale = 1;
+            panX = 0;
+            panY = 0;
+            updateCanvasTransform();
+            redrawConnections();
+        }
+
+        // Pan controls
+        canvasContainer.addEventListener('mousedown', (e) => {
+            if (e.target === canvasContainer || e.target === canvas || e.target === svg) {
+                if (isPlacingNode && pendingNodeType) {
+                    // Place the node where released
+                    const x = (e.clientX - panX) / scale;
+                    const y = (e.clientY - panY - 60) / scale;
+                    createNodeAt(pendingNodeType, x - 90, y - 30);
+                    return;
+                }
+
+                isPanning = true;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                canvasContainer.classList.add('grabbing');
+            }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (isPanning) {
+                const dx = e.clientX - lastMouseX;
+                const dy = e.clientY - lastMouseY;
+                panX += dx;
+                panY += dy;
+                lastMouseX = e.clientX;
+                lastMouseY = e.clientY;
+                updateCanvasTransform();
+                redrawConnections();
+            }
+        });
+
+        document.addEventListener('mouseup', (e) => {
+            if (isPlacingNode) {
+                // Place at current mouse position
+                if (pendingNodeType && ghostNode) {
+                    const x = (e.clientX - panX) / scale;
+                    const y = (e.clientY - panY - 60) / scale;
+                    createNodeAt(pendingNodeType, x - 90, y - 30);
+                }
+
+                isPlacingNode = false;
+                pendingNodeType = null;
+                if (ghostNode) {
+                    ghostNode.remove();
+                    ghostNode = null;
+                }
+            }
+
+            isPanning = false;
+            canvasContainer.classList.remove('grabbing');
+        });
+
+        // Zoom with mouse wheel
+        canvasContainer.addEventListener('wheel', (e) => {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? 0.9 : 1.1;
+            const newScale = Math.max(0.3, Math.min(3, scale * delta));
+
+            if (newScale !== scale) {
+                const rect = canvasContainer.getBoundingClientRect();
+                const mouseX = e.clientX - rect.left;
+                const mouseY = e.clientY - rect.top;
+
+                const worldX = (mouseX - panX) / scale;
+                const worldY = (mouseY - panY) / scale;
+
+                scale = newScale;
+
+                panX = mouseX - worldX * scale;
+                panY = mouseY - worldY * scale;
+
+                updateCanvasTransform();
+                redrawConnections();
+            }
+        });
+
+        // Connection system
+        function startConnection(e) {
+            if (e.button !== 0) return;
+            e.stopPropagation();
+
+            const port = e.target;
+            const nodeId = parseInt(port.dataset.nodeId);
+            const portType = port.dataset.portType;
+            const portIndex = parseInt(port.dataset.portIndex || 0);
+
+            isConnecting = true;
+            connectionStart = { nodeId, portType, portIndex, element: port };
+
+            // Create temporary line
+            tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            tempLine.setAttribute('stroke', '#007acc');
+            tempLine.setAttribute('stroke-width', '2');
+            tempLine.setAttribute('stroke-dasharray', '5,5');
+
+            const rect = port.getBoundingClientRect();
+            const x = screenToCanvasX(rect.left + rect.width / 2);
+            const y = screenToCanvasY(rect.top + rect.height / 2);
+
+            tempLine.setAttribute('x1', x);
+            tempLine.setAttribute('y1', y);
+            tempLine.setAttribute('x2', x);
+            tempLine.setAttribute('y2', y);
+
+            svg.appendChild(tempLine);
+        }
+
+        function updateTempLine(e) {
+            if (!tempLine || !connectionStart) return;
+
+            const rect = connectionStart.element.getBoundingClientRect();
+            const x1 = screenToCanvasX(rect.left + rect.width / 2);
+            const y1 = screenToCanvasY(rect.top + rect.height / 2);
+
+            const x2 = screenToCanvasX(e.clientX);
+            const y2 = screenToCanvasY(e.clientY);
+
+            tempLine.setAttribute('x1', x1);
+            tempLine.setAttribute('y1', y1);
+            tempLine.setAttribute('x2', x2);
+            tempLine.setAttribute('y2', y2);
+        }
+
+        function endConnection(e) {
+            if (!isConnecting || !connectionStart) return;
+
+            e.stopPropagation();
+
+            const port = e.target;
+            if (!port.classList.contains('node-port')) {
+                cancelConnection();
+                return;
+            }
+
+            const nodeId = parseInt(port.dataset.nodeId);
+            const portType = port.dataset.portType;
+            const portIndex = parseInt(port.dataset.portIndex || 0);
+
+            // Validate connection
+            if (connectionStart.portType === portType) {
+                cancelConnection();
+                return;
+            }
+
+            if (connectionStart.nodeId === nodeId) {
+                cancelConnection();
+                return;
+            }
+
+            // Create connection
+            let fromNode, fromPort, toNode, toPort;
+
+            if (connectionStart.portType === 'output') {
+                fromNode = connectionStart.nodeId;
+                fromPort = connectionStart.portIndex;
+                toNode = nodeId;
+                toPort = 0;
+            } else {
+                fromNode = nodeId;
+                fromPort = portIndex;
+                toNode = connectionStart.nodeId;
+                toPort = 0;
+            }
+
+            // Check if connection already exists
+            const exists = connections.find(c =>
+                c.fromNode === fromNode &&
+                c.fromPort === fromPort &&
+                c.toNode === toNode
+            );
+
+            if (!exists) {
+                connections.push({
+                    id: nextConnectionId++,
+                    fromNode,
+                    fromPort,
+                    toNode,
+                    toPort
+                });
+            }
+
+            cancelConnection();
+            redrawConnections();
+        }
+
+        function cancelConnection() {
+            isConnecting = false;
+            connectionStart = null;
+            if (tempLine) {
+                tempLine.remove();
+                tempLine = null;
+            }
+        }
+
+        document.addEventListener('mouseup', (e) => {
+            if (isConnecting && !e.target.classList.contains('node-port')) {
+                cancelConnection();
+            }
+        });
+
+        function redrawConnections() {
+            // Clear existing connections
+            svg.querySelectorAll('.connection-line, .connection-remove').forEach(el => el.remove());
+
+            connections.forEach(conn => {
+                const fromNode = nodes.find(n => n.id === conn.fromNode);
+                const toNode = nodes.find(n => n.id === conn.toNode);
+
+                if (!fromNode || !toNode) return;
+
+                const fromEl = document.getElementById(`node-${fromNode.id}`);
+                const toEl = document.getElementById(`node-${toNode.id}`);
+
+                if (!fromEl || !toEl) return;
+
+                const fromPorts = fromEl.querySelectorAll('.node-port.output');
+                const toPorts = toEl.querySelectorAll('.node-port.input');
+
+                const fromPort = fromPorts[conn.fromPort];
+                const toPort = toPorts[0];
+
+                if (!fromPort || !toPort) return;
+
+                // Get port positions relative to the canvas
+                const fromPortRect = fromPort.getBoundingClientRect();
+                const toPortRect = toPort.getBoundingClientRect();
+                const x1 = screenToCanvasX(fromPortRect.left + fromPortRect.width / 2);
+                const y1 = screenToCanvasY(fromPortRect.top + fromPortRect.height / 2);
+                const x2 = screenToCanvasX(toPortRect.left + toPortRect.width / 2);
+                const y2 = screenToCanvasY(toPortRect.top + toPortRect.height / 2);
+
+                // Create path with curve
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const dx = x2 - x1;
+                const dy = y2 - y1;
+                const curve = Math.abs(dx) * 0.5;
+
+                const d = `M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`;
+                path.setAttribute('d', d);
+                path.setAttribute('stroke', '#28a745');
+                path.setAttribute('stroke-width', '2');
+                path.setAttribute('fill', 'none');
+                path.classList.add('connection-line');
+                path.style.pointerEvents = 'stroke';
+
+                svg.appendChild(path);
+
+                // Add remove button
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                const removeBtn = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                removeBtn.classList.add('connection-remove');
+                removeBtn.style.cursor = 'pointer';
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', midX);
+                circle.setAttribute('cy', midY);
+                circle.setAttribute('r', '8');
+                circle.setAttribute('fill', '#dc3545');
+
+                const line1 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line1.setAttribute('x1', midX - 4);
+                line1.setAttribute('y1', midY - 4);
+                line1.setAttribute('x2', midX + 4);
+                line1.setAttribute('y2', midY + 4);
+                line1.setAttribute('stroke', 'white');
+                line1.setAttribute('stroke-width', '2');
+
+                const line2 = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line2.setAttribute('x1', midX + 4);
+                line2.setAttribute('y1', midY - 4);
+                line2.setAttribute('x2', midX - 4);
+                line2.setAttribute('y2', midY + 4);
+                line2.setAttribute('stroke', 'white');
+                line2.setAttribute('stroke-width', '2');
+
+                removeBtn.appendChild(circle);
+                removeBtn.appendChild(line1);
+                removeBtn.appendChild(line2);
+
+                removeBtn.addEventListener('click', () => {
+                    connections = connections.filter(c => c.id !== conn.id);
+                    redrawConnections();
+                });
+
+                svg.appendChild(removeBtn);
+            });
+        }
+
+        function screenToCanvasX(screenX) {
+            return (screenX - canvasContainer.getBoundingClientRect().left - panX) / scale;
+        }
+
+        function screenToCanvasY(screenY) {
+            return (screenY - canvasContainer.getBoundingClientRect().top - panY) / scale;
+        }
+
+        function previewStory() {
+            if (!nodes.some(n => n.type === 'start')) {
+                alert('You need a Start node to preview the story!');
+                return;
+            }
+            document.getElementById('preview-frame').srcdoc = generateStoryHTML();
+            document.getElementById('preview-modal').classList.add('open');
+        }
+
+        function closePreview() {
+            const modal = document.getElementById('preview-modal');
+            modal.classList.remove('open');
+            document.getElementById('preview-frame').srcdoc = '';
+        }
+
+        document.getElementById('preview-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'preview-modal') closePreview();
+        });
+        document.addEventListener('keydown', (event) => {
+            if (event.key === 'Escape') closePreview();
+        });
+
+        // Properties panel
+        function showProperties(node) {
+            const content = document.getElementById('properties-content');
+            content.innerHTML = '';
+
+            propertiesPanel.classList.add('open');
+
+            switch (node.type) {
+                case 'start':
+                    showStartProperties(node, content);
+                    break;
+                case 'text':
+                    showTextProperties(node, content);
+                    break;
+                case 'button':
+                    showButtonProperties(node, content);
+                    break;
+                case 'image':
+                    showImageProperties(node, content);
+                    break;
+                case 'javascript':
+                    showJavaScriptProperties(node, content);
+                    break;
+                case 'random':
+                    showRandomProperties(node, content);
+                    break;
+                case 'input':
+                    showInputProperties(node, content);
+                    break;
+                case 'logic':
+                    showLogicProperties(node, content);
+                    break;
+            }
+
+            // Add delete button
+            const deleteBtn = document.createElement('button');
+            deleteBtn.className = 'btn-small btn-remove';
+            deleteBtn.textContent = 'Delete Node (Shift+Click to skip confirm)';
+            deleteBtn.style.width = '100%';
+            deleteBtn.style.marginTop = '20px';
+            deleteBtn.onclick = (e) => deleteNode(node, e.shiftKey);
+            content.appendChild(deleteBtn);
+        }
+
+        function showStartProperties(node, container) {
+            container.innerHTML = '<p style="color: #aaa;">This is the starting point of your story.</p>';
+        }
+
+        function showTextProperties(node, container) {
+            const group = document.createElement('div');
+            group.className = 'property-group';
+
+            const label = document.createElement('label');
+            label.className = 'property-label';
+            label.textContent = 'Text Content';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'property-input property-textarea';
+            textarea.value = node.data.text;
+            textarea.oninput = (e) => {
+                node.data.text = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            group.appendChild(label);
+            group.appendChild(textarea);
+            container.appendChild(group);
+        }
+
+        function showButtonProperties(node, container) {
+            // Question text
+            const textGroup = document.createElement('div');
+            textGroup.className = 'property-group';
+
+            const textLabel = document.createElement('label');
+            textLabel.className = 'property-label';
+            textLabel.textContent = 'Question Text';
+
+            const textInput = document.createElement('textarea');
+            textInput.className = 'property-input property-textarea';
+            textInput.value = node.data.text;
+            textInput.oninput = (e) => {
+                node.data.text = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            textGroup.appendChild(textLabel);
+            textGroup.appendChild(textInput);
+            container.appendChild(textGroup);
+
+            // Variable
+            const varGroup = document.createElement('div');
+            varGroup.className = 'property-group';
+
+            const varLabel = document.createElement('label');
+            varLabel.className = 'property-label';
+            varLabel.textContent = 'Save Choice to Variable';
+
+            const varInput = document.createElement('input');
+            varInput.className = 'property-input';
+            varInput.value = node.data.variable || '';
+            varInput.placeholder = 'variableName';
+            varInput.oninput = (e) => {
+                node.data.variable = e.target.value;
+            };
+
+            varGroup.appendChild(varLabel);
+            varGroup.appendChild(varInput);
+            container.appendChild(varGroup);
+
+            // Choices
+            const choicesLabel = document.createElement('label');
+            choicesLabel.className = 'property-label';
+            choicesLabel.textContent = 'Choices (1-8)';
+            choicesLabel.style.marginTop = '15px';
+            choicesLabel.style.display = 'block';
+            container.appendChild(choicesLabel);
+
+            node.data.choices.forEach((choice, index) => {
+                const choiceDiv = document.createElement('div');
+                choiceDiv.className = 'choice-item';
+
+                const choiceLabel = document.createElement('label');
+                choiceLabel.className = 'property-label';
+                choiceLabel.textContent = `Choice ${index + 1} - Button Label`;
+
+                const labelInput = document.createElement('input');
+                labelInput.className = 'property-input';
+                labelInput.value = choice.label;
+                labelInput.oninput = (e) => {
+                    choice.label = e.target.value;
+                };
+
+                const textLabel = document.createElement('label');
+                textLabel.className = 'property-label';
+                textLabel.textContent = 'Response Text (optional)';
+                textLabel.style.marginTop = '8px';
+
+                const textInput = document.createElement('textarea');
+                textInput.className = 'property-input';
+                textInput.rows = 2;
+                textInput.value = choice.text || '';
+                textInput.oninput = (e) => {
+                    choice.text = e.target.value;
+                };
+
+                choiceDiv.appendChild(choiceLabel);
+                choiceDiv.appendChild(labelInput);
+                choiceDiv.appendChild(textLabel);
+                choiceDiv.appendChild(textInput);
+
+                if (node.data.choices.length > 1) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'btn-small btn-remove';
+                    removeBtn.textContent = 'Remove Choice';
+                    removeBtn.onclick = () => {
+                        node.data.choices.splice(index, 1);
+                        updateNodeDisplay(node);
+                        showProperties(node);
+                    };
+                    choiceDiv.appendChild(removeBtn);
+                }
+
+                container.appendChild(choiceDiv);
+            });
+
+            if (node.data.choices.length < 8) {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'btn-small';
+                addBtn.textContent = '+ Add Choice';
+                addBtn.style.width = '100%';
+                addBtn.onclick = () => {
+                    node.data.choices.push({ label: `Choice ${node.data.choices.length + 1}`, text: '' });
+                    updateNodeDisplay(node);
+                    showProperties(node);
+                };
+                container.appendChild(addBtn);
+            }
+        }
+
+        function showImageProperties(node, container) {
+            const group = document.createElement('div');
+            group.className = 'property-group';
+
+            const label = document.createElement('label');
+            label.className = 'property-label';
+            label.textContent = 'Image Base64 Data';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'property-input property-textarea';
+            textarea.value = node.data.base64;
+            textarea.placeholder = 'data:image/png;base64,iVBORw0KG...';
+            textarea.oninput = (e) => {
+                node.data.base64 = e.target.value;
+            };
+
+            const altLabel = document.createElement('label');
+            altLabel.className = 'property-label';
+            altLabel.textContent = 'Alt Text';
+            altLabel.style.marginTop = '10px';
+
+            const altInput = document.createElement('input');
+            altInput.className = 'property-input';
+            altInput.value = node.data.alt;
+            altInput.oninput = (e) => {
+                node.data.alt = e.target.value;
+            };
+
+            group.appendChild(label);
+            group.appendChild(textarea);
+            group.appendChild(altLabel);
+            group.appendChild(altInput);
+            container.appendChild(group);
+
+            const helpText = document.createElement('p');
+            helpText.style.fontSize = '11px';
+            helpText.style.color = '#888';
+            helpText.style.marginTop = '10px';
+            helpText.textContent = 'Paste base64 encoded image data starting with "data:image/..."';
+            container.appendChild(helpText);
+        }
+
+        function showJavaScriptProperties(node, container) {
+            const group = document.createElement('div');
+            group.className = 'property-group';
+
+            const label = document.createElement('label');
+            label.className = 'property-label';
+            label.textContent = 'JavaScript Code';
+
+            const textarea = document.createElement('textarea');
+            textarea.className = 'property-input property-textarea';
+            textarea.style.minHeight = '150px';
+            textarea.style.fontFamily = 'monospace';
+            textarea.value = node.data.code;
+            textarea.oninput = (e) => {
+                node.data.code = e.target.value;
+            };
+
+            group.appendChild(label);
+            group.appendChild(textarea);
+            container.appendChild(group);
+
+            const helpText = document.createElement('p');
+            helpText.style.fontSize = '11px';
+            helpText.style.color = '#888';
+            helpText.style.marginTop = '10px';
+            helpText.innerHTML = 'Access variables with <code>getVar("name")</code> and set with <code>setVar("name", value)</code>';
+            container.appendChild(helpText);
+        }
+
+        function showRandomProperties(node, container) {
+            // Variable
+            const varGroup = document.createElement('div');
+            varGroup.className = 'property-group';
+
+            const varLabel = document.createElement('label');
+            varLabel.className = 'property-label';
+            varLabel.textContent = 'Save Selected Path to Variable';
+
+            const varInput = document.createElement('input');
+            varInput.className = 'property-input';
+            varInput.value = node.data.variable || '';
+            varInput.placeholder = 'variableName';
+            varInput.oninput = (e) => {
+                node.data.variable = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            varGroup.appendChild(varLabel);
+            varGroup.appendChild(varInput);
+            container.appendChild(varGroup);
+
+            const label = document.createElement('label');
+            label.className = 'property-label';
+            label.textContent = 'Random Paths (2-8)';
+            label.style.marginTop = '15px';
+            container.appendChild(label);
+
+            node.data.outputs.forEach((output, index) => {
+                const outputDiv = document.createElement('div');
+                outputDiv.className = 'choice-item';
+
+                const nameLabel = document.createElement('label');
+                nameLabel.className = 'property-label';
+                nameLabel.textContent = `Path ${index + 1} - Label`;
+
+                const nameInput = document.createElement('input');
+                nameInput.className = 'property-input';
+                nameInput.value = output.label;
+                nameInput.oninput = (e) => {
+                    output.label = e.target.value;
+                };
+
+                const chanceLabel = document.createElement('label');
+                chanceLabel.className = 'property-label';
+                chanceLabel.textContent = 'Chance (%)';
+                chanceLabel.style.marginTop = '8px';
+
+                const chanceInput = document.createElement('input');
+                chanceInput.className = 'property-input';
+                chanceInput.type = 'number';
+                chanceInput.min = '0';
+                chanceInput.max = '100';
+                chanceInput.value = output.chance;
+                chanceInput.oninput = (e) => {
+                    output.chance = parseInt(e.target.value) || 0;
+                };
+
+                outputDiv.appendChild(nameLabel);
+                outputDiv.appendChild(nameInput);
+                outputDiv.appendChild(chanceLabel);
+                outputDiv.appendChild(chanceInput);
+
+                if (node.data.outputs.length > 2) {
+                    const removeBtn = document.createElement('button');
+                    removeBtn.className = 'btn-small btn-remove';
+                    removeBtn.textContent = 'Remove Path';
+                    removeBtn.onclick = () => {
+                        node.data.outputs.splice(index, 1);
+                        updateNodeDisplay(node);
+                        showProperties(node);
+                    };
+                    outputDiv.appendChild(removeBtn);
+                }
+
+                container.appendChild(outputDiv);
+            });
+
+            if (node.data.outputs.length < 8) {
+                const addBtn = document.createElement('button');
+                addBtn.className = 'btn-small';
+                addBtn.textContent = '+ Add Path';
+                addBtn.style.width = '100%';
+                addBtn.onclick = () => {
+                    node.data.outputs.push({ label: `Path ${node.data.outputs.length + 1}`, chance: 50 });
+                    updateNodeDisplay(node);
+                    showProperties(node);
+                };
+                container.appendChild(addBtn);
+            }
+        }
+
+        function showInputProperties(node, container) {
+            const promptGroup = document.createElement('div');
+            promptGroup.className = 'property-group';
+
+            const promptLabel = document.createElement('label');
+            promptLabel.className = 'property-label';
+            promptLabel.textContent = 'Prompt Text';
+
+            const promptInput = document.createElement('textarea');
+            promptInput.className = 'property-input property-textarea';
+            promptInput.value = node.data.prompt;
+            promptInput.oninput = (e) => {
+                node.data.prompt = e.target.value;
+            };
+
+            promptGroup.appendChild(promptLabel);
+            promptGroup.appendChild(promptInput);
+            container.appendChild(promptGroup);
+
+            const varGroup = document.createElement('div');
+            varGroup.className = 'property-group';
+
+            const varLabel = document.createElement('label');
+            varLabel.className = 'property-label';
+            varLabel.textContent = 'Save to Variable';
+
+            const varInput = document.createElement('input');
+            varInput.className = 'property-input';
+            varInput.value = node.data.variable;
+            varInput.placeholder = 'variableName';
+            varInput.oninput = (e) => {
+                node.data.variable = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            varGroup.appendChild(varLabel);
+            varGroup.appendChild(varInput);
+            container.appendChild(varGroup);
+        }
+
+        function showLogicProperties(node, container) {
+            const varGroup = document.createElement('div');
+            varGroup.className = 'property-group';
+
+            const varLabel = document.createElement('label');
+            varLabel.className = 'property-label';
+            varLabel.textContent = 'Variable Name';
+
+            const varInput = document.createElement('input');
+            varInput.className = 'property-input';
+            varInput.value = node.data.variable;
+            varInput.placeholder = 'variableName';
+            varInput.oninput = (e) => {
+                node.data.variable = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            varGroup.appendChild(varLabel);
+            varGroup.appendChild(varInput);
+            container.appendChild(varGroup);
+
+            const condGroup = document.createElement('div');
+            condGroup.className = 'property-group';
+
+            const condLabel = document.createElement('label');
+            condLabel.className = 'property-label';
+            condLabel.textContent = 'Condition';
+
+            const condSelect = document.createElement('select');
+            condSelect.className = 'property-input';
+            condSelect.innerHTML = `
+                <option value="equals">Equals</option>
+                <option value="notEquals">Not Equals</option>
+                <option value="contains">Contains</option>
+                <option value="greaterThan">Greater Than</option>
+                <option value="lessThan">Less Than</option>
+            `;
+            condSelect.value = node.data.condition;
+            condSelect.onchange = (e) => {
+                node.data.condition = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            condGroup.appendChild(condLabel);
+            condGroup.appendChild(condSelect);
+            container.appendChild(condGroup);
+
+            const valueGroup = document.createElement('div');
+            valueGroup.className = 'property-group';
+
+            const valueLabel = document.createElement('label');
+            valueLabel.className = 'property-label';
+            valueLabel.textContent = 'Compare Value';
+
+            const valueInput = document.createElement('input');
+            valueInput.className = 'property-input';
+            valueInput.value = node.data.value;
+            valueInput.oninput = (e) => {
+                node.data.value = e.target.value;
+                updateNodeDisplay(node);
+            };
+
+            valueGroup.appendChild(valueLabel);
+            valueGroup.appendChild(valueInput);
+            container.appendChild(valueGroup);
+
+            const helpText = document.createElement('p');
+            helpText.style.fontSize = '11px';
+            helpText.style.color = '#888';
+            helpText.style.marginTop = '10px';
+            helpText.textContent = 'First output (top) = condition TRUE, Second output (bottom) = condition FALSE';
+            container.appendChild(helpText);
+        }
+
+        function deleteNode(node, skipConfirm = false) {
+            if (!skipConfirm && !confirm('Delete this node?')) return;
+
+            // Remove connections
+            connections = connections.filter(c => c.fromNode !== node.id && c.toNode !== node.id);
+
+            // Remove node
+            nodes = nodes.filter(n => n.id !== node.id);
+
+            // Remove from DOM
+            const nodeEl = document.getElementById(`node-${node.id}`);
+            if (nodeEl) nodeEl.remove();
+
+            // Close properties
+            propertiesPanel.classList.remove('open');
+            selectedNode = null;
+
+            redrawConnections();
+        }
+
+        // Close properties panel when clicking outside
+        canvasContainer.addEventListener('click', (e) => {
+            if (e.target === canvasContainer || e.target === canvas) {
+                propertiesPanel.classList.remove('open');
+                document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+                selectedNode = null;
+            }
+        });
+
+        // Export to HTML
+        function exportStory() {
+            if (nodes.length === 0) {
+                alert('Add some nodes first!');
+                return;
+            }
+
+            const startNode = nodes.find(n => n.type === 'start');
+            if (!startNode) {
+                alert('You need a Start node!');
+                return;
+            }
+
+            const html = generateStoryHTML();
+
+            const blob = new Blob([html], { type: 'text/html' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'story.html';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function generateStoryHTML() {
+            const nodesJSON = JSON.stringify(nodes);
+            const connectionsJSON = JSON.stringify(connections);
+
+            return `<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Story</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+        
+        #chat-container {
+            max-width: 600px;
+            width: 100%;
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            height: 80vh;
+            max-height: 700px;
+        }
+        
+        #chat-header {
+            background: #667eea;
+            color: white;
+            padding: 20px;
+            font-size: 20px;
+            font-weight: bold;
+        }
+        
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        
+        .message {
+            margin-bottom: 15px;
+            animation: fadeIn 0.3s;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .message-content {
+            background: white;
+            padding: 15px;
+            border-radius: 10px;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+            margin-bottom: 10px;
+        }
+        
+        .message img {
+            max-width: 100%;
+            border-radius: 5px;
+            margin-top: 10px;
+        }
+        
+        .choices {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .choice-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 12px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+            transition: all 0.2s;
+        }
+        
+        .choice-btn:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.2);
+        }
+        
+        .choice-btn:active {
+            transform: translateY(0);
+        }
+        
+        .input-container {
+            display: flex;
+            gap: 10px;
+            margin-top: 10px;
+        }
+        
+        .user-input {
+            flex: 1;
+            padding: 10px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            font-size: 16px;
+        }
+        
+        .submit-btn {
+            background: #667eea;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        
+        .submit-btn:hover {
+            background: #5568d3;
+        }
+    </style>
+</head>
+<body>
+    <div id="chat-container">
+        <div id="chat-header">Interactive Story</div>
+        <div id="chat-messages"></div>
+    </div>
+    
+    <script>
+        const nodes = ${nodesJSON};
+        const connections = ${connectionsJSON};
+        const variables = {};
+        let currentNodeId = null;
+        
+        function getVar(name) {
+            return variables[name];
+        }
+        
+        function setVar(name, value) {
+            variables[name] = value;
+        }
+        
+        function addMessage(content) {
+            const messagesDiv = document.getElementById('chat-messages');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = 'message';
+            messageDiv.innerHTML = content;
+            messagesDiv.appendChild(messageDiv);
+            messagesDiv.scrollTop = messagesDiv.scrollHeight;
+        }
+        
+        function goToNode(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            if (!node) {
+                addMessage('<div class="message-content">Story ended. Thank you for playing!</div>');
+                return;
+            }
+            
+            currentNodeId = nodeId;
+            
+            switch(node.type) {
+                case 'start':
+                    handleStart(node);
+                    break;
+                case 'text':
+                    handleText(node);
+                    break;
+                case 'button':
+                    handleButton(node);
+                    break;
+                case 'image':
+                    handleImage(node);
+                    break;
+                case 'javascript':
+                    handleJavaScript(node);
+                    break;
+                case 'random':
+                    handleRandom(node);
+                    break;
+                case 'input':
+                    handleInput(node);
+                    break;
+                case 'logic':
+                    handleLogic(node);
+                    break;
+            }
+        }
+        
+        function getNextNode(nodeId, portIndex = 0) {
+            const conn = connections.find(c => c.fromNode === nodeId && c.fromPort === portIndex);
+            return conn ? conn.toNode : null;
+        }
+        
+        function handleStart(node) {
+            const nextNode = getNextNode(node.id);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 500);
+            }
+        }
+        
+        function handleText(node) {
+            addMessage('<div class="message-content">' + escapeHtml(node.data.text) + '</div>');
+            const nextNode = getNextNode(node.id);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 1000);
+            }
+        }
+        
+        function handleButton(node) {
+            let content = '<div class="message-content">' + escapeHtml(node.data.text) + '</div>';
+            content += '<div class="choices">';
+            
+            node.data.choices.forEach((choice, index) => {
+                const escapedLabel = escapeHtml(choice.label).replace(/'/g, "\\\\'");
+                content += '<button class="choice-btn" onclick="selectChoice(' + node.id + ', ' + index + ', \\'' + escapedLabel + '\\')">' + escapeHtml(choice.label) + '</button>';
+            });
+            
+            content += '</div>';
+            addMessage(content);
+        }
+        
+        function selectChoice(nodeId, choiceIndex, choiceLabel) {
+            const node = nodes.find(n => n.id === nodeId);
+            const choice = node.data.choices[choiceIndex];
+            
+            // Disable all buttons for this choice
+            const buttons = document.querySelectorAll('.choice-btn');
+            buttons.forEach(btn => {
+                btn.disabled = true;
+                btn.style.opacity = '0.6';
+                btn.style.cursor = 'not-allowed';
+            });
+            
+            // Save to variable if specified
+            if (node.data.variable) {
+                setVar(node.data.variable, choiceLabel);
+            }
+            
+            // Show response text if any
+            if (choice.text) {
+                addMessage('<div class="message-content">' + escapeHtml(choice.text) + '</div>');
+            }
+            
+            const nextNode = getNextNode(nodeId, choiceIndex);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), choice.text ? 1000 : 500);
+            }
+        }
+        
+        function handleImage(node) {
+            if (node.data.base64) {
+                addMessage('<div class="message-content"><img src="' + node.data.base64 + '" alt="' + escapeHtml(node.data.alt) + '"></div>');
+            }
+            const nextNode = getNextNode(node.id);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 1000);
+            }
+        }
+        
+        function handleJavaScript(node) {
+            try {
+                eval(node.data.code);
+            } catch(e) {
+                console.error('JavaScript error:', e);
+            }
+            const nextNode = getNextNode(node.id);
+            if (nextNode) {
+                goToNode(nextNode);
+            }
+        }
+        
+        function handleRandom(node) {
+            const totalChance = node.data.outputs.reduce((sum, o) => sum + o.chance, 0);
+            const rand = Math.random() * totalChance;
+            
+            let cumulative = 0;
+            let selectedIndex = 0;
+            
+            for (let i = 0; i < node.data.outputs.length; i++) {
+                cumulative += node.data.outputs[i].chance;
+                if (rand <= cumulative) {
+                    selectedIndex = i;
+                    break;
+                }
+            }
+            
+            // Save selected path to variable if specified
+            if (node.data.variable) {
+                setVar(node.data.variable, node.data.outputs[selectedIndex].label);
+            }
+            
+            const nextNode = getNextNode(node.id, selectedIndex);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 500);
+            }
+        }
+        
+        function handleInput(node) {
+            let content = '<div class="message-content">' + escapeHtml(node.data.prompt) + '</div>';
+            content += '<div class="message-content">';
+            content += '<div class="input-container">';
+            content += '<input type="text" class="user-input" id="input-' + node.id + '" placeholder="Type your answer...">';
+            content += '<button class="submit-btn" onclick="submitInput(' + node.id + ')">Submit</button>';
+            content += '</div>';
+            content += '</div>';
+            addMessage(content);
+            
+            setTimeout(() => {
+                document.getElementById('input-' + node.id).focus();
+            }, 100);
+        }
+        
+        function submitInput(nodeId) {
+            const node = nodes.find(n => n.id === nodeId);
+            const input = document.getElementById('input-' + nodeId);
+            const value = input.value.trim();
+            
+            if (!value) {
+                alert('Please enter a response');
+                return;
+            }
+            
+            // Save to variable
+            setVar(node.data.variable, value);
+            
+            // Show user's response
+            addMessage('<div class="message-content" style="background: #e3f2fd;">You: ' + escapeHtml(value) + '</div>');
+            
+            const nextNode = getNextNode(nodeId);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 500);
+            }
+        }
+        
+        function handleLogic(node) {
+            const varValue = getVar(node.data.variable);
+            const compareValue = node.data.value;
+            let result = false;
+            
+            switch(node.data.condition) {
+                case 'equals':
+                    result = String(varValue) === String(compareValue);
+                    break;
+                case 'notEquals':
+                    result = String(varValue) !== String(compareValue);
+                    break;
+                case 'contains':
+                    result = String(varValue).includes(String(compareValue));
+                    break;
+                case 'greaterThan':
+                    result = parseFloat(varValue) > parseFloat(compareValue);
+                    break;
+                case 'lessThan':
+                    result = parseFloat(varValue) < parseFloat(compareValue);
+                    break;
+            }
+            
+            const portIndex = result ? 0 : 1;
+            const nextNode = getNextNode(node.id, portIndex);
+            if (nextNode) {
+                setTimeout(() => goToNode(nextNode), 300);
+            }
+        }
+        
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+        
+        // Start the story
+        const startNode = nodes.find(n => n.type === 'start');
+        if (startNode) {
+            goToNode(startNode.id);
+        }
+    <\/script>
+</body>
+
+</html>`;
+        }
+
+        // Save/Load project
+        function saveProject() {
+            const project = {
+                nodes: nodes,
+                connections: connections,
+                nextNodeId: nextNodeId,
+                nextConnectionId: nextConnectionId
+            };
+
+            const json = JSON.stringify(project, null, 2);
+            const blob = new Blob([json], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'story-project.json';
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function loadProject() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = '.json';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    try {
+                        const project = JSON.parse(e.target.result);
+
+                        // Clear current project
+                        nodes = [];
+                        connections = [];
+                        canvas.querySelectorAll('.node').forEach(n => n.remove());
+
+                        // Load new project
+                        nodes = project.nodes;
+                        connections = project.connections;
+                        nextNodeId = project.nextNodeId || nextNodeId;
+                        nextConnectionId = project.nextConnectionId || nextConnectionId;
+
+                        // Render nodes
+                        nodes.forEach(node => renderNode(node));
+                        redrawConnections();
+
+                        propertiesPanel.classList.remove('open');
+                        selectedNode = null;
+
+                    } catch (err) {
+                        alert('Error loading project: ' + err.message);
+                    }
+                };
+                reader.readAsText(file);
+            };
+            input.click();
+        }
+
+        // Auto-save to cookie every 5 seconds
+        function saveToLocal() {
+            const project = {
+                nodes: nodes,
+                connections: connections,
+                nextNodeId: nextNodeId,
+                nextConnectionId: nextConnectionId
+            };
+            localStorage.setItem('storyMakerProject', JSON.stringify(project));
+        }
+
+        function loadFromLocal() {
+            const saved = localStorage.getItem('storyMakerProject');
+            if (saved) {
+                try {
+                    const project = JSON.parse(saved);
+                    nodes = project.nodes;
+                    connections = project.connections;
+                    nextNodeId = project.nextNodeId || nextNodeId;
+                    nextConnectionId = project.nextConnectionId || nextConnectionId;
+                    nodes.forEach(node => renderNode(node));
+                    redrawConnections();
+                    return true;
+                } catch (e) {
+                    console.error('Error loading saved project:', e);
+                }
+            }
+            return false;
+        }
+
+        // Auto-save every 5 seconds
+        setInterval(saveToLocal, 5000);
+
+        // Initialize with a start node or load saved project
+        window.addEventListener('load', () => {
+            const loaded = loadFromLocal();
+            if (!loaded && nodes.length === 0) {
+                addNode('start');
+            }
+        });
+
+        // Save before unload
+        window.addEventListener('beforeunload', saveToLocal);
+    </script>
+</body>
+
+</html>
