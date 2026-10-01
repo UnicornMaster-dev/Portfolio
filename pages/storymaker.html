@@ -124,8 +124,9 @@
 
         .node-port.input {
             left: -6px;
-            top: 50%;
-            transform: translateY(-50%);
+            top: -6px;
+            left: 50%;
+            transform: translateX(-50%);
         }
 
         .node-port.output {
@@ -190,6 +191,64 @@
             background: #2d2d2d;
         }
         #preview-frame { flex: 1; width: 100%; border: 0; background: white; }
+
+        #quick-menu {
+            display: none;
+            position: fixed;
+            z-index: 3000;
+            min-width: 170px;
+            padding: 5px;
+            background: #2d2d2d;
+            border: 1px solid #666;
+            border-radius: 5px;
+            box-shadow: 0 5px 18px rgba(0,0,0,.45);
+        }
+        #quick-menu.open { display: block; }
+        .quick-menu-item {
+            display: block;
+            width: 100%;
+            padding: 8px 10px;
+            color: #fff;
+            background: transparent;
+            border: 0;
+            border-radius: 3px;
+            text-align: left;
+            cursor: pointer;
+        }
+        .quick-menu-item:hover:not(:disabled) { background: #007acc; }
+        .quick-menu-item:disabled { color: #777; cursor: default; }
+        #selection-box {
+            display: none;
+            position: fixed;
+            z-index: 1500;
+            border: 1px dashed #4db8ff;
+            background: rgba(0,122,204,.15);
+            pointer-events: none;
+        }
+        #documentation-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 2000;
+            background: rgba(0,0,0,.75);
+            align-items: center;
+            justify-content: center;
+            padding: 24px;
+        }
+        #documentation-modal.open { display: flex; }
+        .documentation-window {
+            width: min(720px, 96vw);
+            max-height: 90vh;
+            background: #222;
+            border: 1px solid #555;
+            border-radius: 8px;
+            overflow: hidden;
+        }
+        .documentation-body { padding: 22px; overflow-y: auto; max-height: calc(90vh - 55px); line-height: 1.5; }
+        .documentation-body h2 { margin: 0 0 10px; color: #4db8ff; font-size: 18px; }
+        .documentation-body p { margin: 0 0 16px; color: #ddd; }
+        .documentation-body dt { color: #fff; font-weight: bold; margin-top: 10px; }
+        .documentation-body dd { margin-left: 18px; color: #bbb; }
 
         #properties-panel {
             position: fixed;
@@ -309,8 +368,10 @@
         <div class="toolbar-divider"></div>
         <button class="toolbar-btn" onclick="exportStory()">Export HTML</button>
         <button class="toolbar-btn secondary" onclick="previewStory()">Preview</button>
+        <button class="toolbar-btn" onclick="openDocumentation()">Documentation</button>
         <button class="toolbar-btn" onclick="saveProject()">Save JSON</button>
         <button class="toolbar-btn" onclick="loadProject()">Load JSON</button>
+        <button class="toolbar-btn" onclick="clearCanvas()">Clear Canvas</button>
     </div>
 
     <div id="canvas-container">
@@ -338,12 +399,52 @@
             <iframe id="preview-frame" title="Interactive story preview"></iframe>
         </div>
     </div>
+    <div id="quick-menu">
+        <button class="quick-menu-item" id="copy-node-action" onclick="copySelectedNodes()">Copy node</button>
+        <button class="quick-menu-item" id="paste-node-action" onclick="pasteCopiedNodes()">Paste node</button>
+        <button class="quick-menu-item" onclick="deleteSelectedNodes()">Delete node</button>
+    </div>
+    <div id="selection-box"></div>
+    <div id="documentation-modal" role="dialog" aria-modal="true" aria-label="Story maker documentation">
+        <div class="documentation-window">
+            <div class="preview-header"><strong>Node Story Maker Documentation</strong><button class="btn-small" onclick="closeDocumentation()">Close</button></div>
+            <div class="documentation-body">
+                <h2>How to use the editor</h2>
+                <p>Drag nodes onto the canvas, connect an output at the bottom of one node to the input at the top of another, and edit the selected node in the Properties panel. Drag the blank canvas to pan and use the zoom controls to navigate.</p>
+                <p>Hold Shift and drag across the canvas to select an area. Ctrl/Cmd-click adds individual nodes to the selection. Selected nodes can be moved together.</p>
+                <p>Right-click a node or the canvas for quick actions. Use Preview to test the current interactive story before exporting HTML. Save JSON to keep an editable project copy.</p>
+                <h2>Node reference</h2>
+                <dl>
+                    <dt>Start</dt><dd>The entry point of the story. Connect its bottom output to the first node.</dd>
+                    <dt>Text</dt><dd>Displays text, then continues through its output.</dd>
+                    <dt>Buttons</dt><dd>Shows choices. Each bottom output corresponds to a choice.</dd>
+                    <dt>Image</dt><dd>Displays an image and continues to the next node.</dd>
+                    <dt>JavaScript</dt><dd>Runs custom JavaScript, then continues.</dd>
+                    <dt>Random Chance</dt><dd>Selects one of its bottom outputs at random.</dd>
+                    <dt>User Input</dt><dd>Asks the player for text and saves it to a variable.</dd>
+                    <dt>Logic Check</dt><dd>Branches through its first output when true and second output when false.</dd>
+                </dl>
+                <p><strong>Keyboard:</strong> Ctrl/Cmd+Z undoes the last change. Ctrl/Cmd+Shift+Z redoes it.</p>
+            </div>
+        </div>
+    </div>
 
     <script>
         // Core state
         let nodes = [];
         let connections = [];
         let selectedNode = null;
+        let selectedNodes = [];
+        let copiedNodes = [];
+        let selectionStart = null;
+        let selectingArea = false;
+        let suppressCanvasClick = false;
+        let undoStack = [];
+        let redoStack = [];
+        let dragStartPositions = null;
+        let nodeWasDragged = false;
+        let canvasPointerDownAt = 0;
+        let canvasWasDragged = false;
         let nextNodeId = 1;
         let nextConnectionId = 1;
 
@@ -492,12 +593,24 @@
             // Node interactions
             nodeEl.addEventListener('mousedown', (e) => {
                 if (e.target.classList.contains('node-port')) return;
+                if (e.shiftKey) return;
+                if (e.ctrlKey || e.metaKey) selectNode(node, true);
                 startDragging(e, node);
             });
 
             nodeEl.addEventListener('click', (e) => {
                 if (e.target.classList.contains('node-port')) return;
-                selectNode(node);
+                if (e.shiftKey || e.ctrlKey || e.metaKey) {
+                    selectNode(node, true);
+                } else {
+                    selectNode(node);
+                }
+            });
+
+            nodeEl.addEventListener('contextmenu', (e) => {
+                e.preventDefault();
+                if (!selectedNodes.includes(node)) selectNode(node, e.ctrlKey || e.metaKey);
+                openQuickMenu(e.clientX, e.clientY);
             });
 
             // Append to DOM first
@@ -650,6 +763,10 @@
 
         function startDragging(e, node) {
             if (e.button !== 0) return;
+            if (!selectedNodes.includes(node)) selectNode(node);
+            pushUndoState();
+            nodeWasDragged = false;
+            dragStartPositions = selectedNodes.map(item => ({ node: item, x: item.x, y: item.y }));
             draggedNode = node;
             const nodeEl = document.getElementById(`node-${node.id}`);
             const rect = nodeEl.getBoundingClientRect();
@@ -662,13 +779,17 @@
             if (draggedNode) {
                 const x = (e.clientX - panX) / scale - dragOffsetX;
                 const y = (e.clientY - panY - 60) / scale - dragOffsetY;
+                const dx = x - dragStartPositions.find(item => item.node === draggedNode).x;
+                const dy = y - dragStartPositions.find(item => item.node === draggedNode).y;
+                if (dx !== 0 || dy !== 0) nodeWasDragged = true;
 
-                draggedNode.x = x;
-                draggedNode.y = y;
-
-                const nodeEl = document.getElementById(`node-${draggedNode.id}`);
-                nodeEl.style.left = x + 'px';
-                nodeEl.style.top = y + 'px';
+                dragStartPositions.forEach(item => {
+                    item.node.x = item.x + dx;
+                    item.node.y = item.y + dy;
+                    const nodeEl = document.getElementById(`node-${item.node.id}`);
+                    nodeEl.style.left = item.node.x + 'px';
+                    nodeEl.style.top = item.node.y + 'px';
+                });
 
                 redrawConnections();
             } else if (isConnecting && tempLine) {
@@ -680,18 +801,116 @@
 
         document.addEventListener('mouseup', () => {
             draggedNode = null;
+            dragStartPositions = null;
+            if (nodeWasDragged) setTimeout(() => { nodeWasDragged = false; }, 0);
         });
 
         // Node selection
-        function selectNode(node) {
+        function selectNode(node, add = false) {
+            if (!add) selectedNodes = [];
+            if (!selectedNodes.includes(node)) selectedNodes.push(node);
             selectedNode = node;
 
             // Update UI
             document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
-            document.getElementById(`node-${node.id}`).classList.add('selected');
+            selectedNodes.forEach(item => document.getElementById(`node-${item.id}`)?.classList.add('selected'));
 
             // Show properties panel
             showProperties(node);
+        }
+
+        function clearSelection() {
+            selectedNodes = [];
+            selectedNode = null;
+            document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
+            propertiesPanel.classList.remove('open');
+        }
+
+        function projectSnapshot() {
+            return { nodes: JSON.parse(JSON.stringify(nodes)), connections: JSON.parse(JSON.stringify(connections)), nextNodeId, nextConnectionId };
+        }
+        function pushUndoState() {
+            undoStack.push(projectSnapshot());
+            if (undoStack.length > 50) undoStack.shift();
+            redoStack = [];
+        }
+        function restoreSnapshot(snapshot) {
+            nodes = JSON.parse(JSON.stringify(snapshot.nodes));
+            connections = JSON.parse(JSON.stringify(snapshot.connections));
+            nextNodeId = snapshot.nextNodeId; nextConnectionId = snapshot.nextConnectionId;
+            canvas.querySelectorAll('.node').forEach(n => n.remove());
+            nodes.forEach(node => renderNode(node));
+            clearSelection(); redrawConnections();
+        }
+        function undo() {
+            if (!undoStack.length) return;
+            redoStack.push(projectSnapshot()); restoreSnapshot(undoStack.pop());
+        }
+        function redo() {
+            if (!redoStack.length) return;
+            undoStack.push(projectSnapshot()); restoreSnapshot(redoStack.pop());
+        }
+        document.addEventListener('keydown', (e) => {
+            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+            e.preventDefault();
+            e.shiftKey ? redo() : undo();
+        });
+
+        function openQuickMenu(x, y) {
+            const menu = document.getElementById('quick-menu');
+            menu.style.left = Math.min(x, window.innerWidth - 190) + 'px';
+            menu.style.top = Math.min(y, window.innerHeight - 125) + 'px';
+            document.getElementById('copy-node-action').disabled = selectedNodes.length === 0;
+            document.getElementById('paste-node-action').disabled = copiedNodes.length === 0;
+            menu.classList.add('open');
+        }
+
+        function closeQuickMenu() { document.getElementById('quick-menu').classList.remove('open'); }
+
+        function copySelectedNodes() {
+            copiedNodes = selectedNodes.map(node => JSON.parse(JSON.stringify(node)));
+            closeQuickMenu();
+        }
+
+        function pasteCopiedNodes() {
+            if (!copiedNodes.length) return;
+            pushUndoState();
+            clearSelection();
+            copiedNodes.forEach((source, index) => {
+                const copy = JSON.parse(JSON.stringify(source));
+                copy.id = nextNodeId++;
+                copy.x += 30;
+                copy.y += 30;
+                nodes.push(copy);
+                renderNode(copy);
+                selectedNodes.push(copy);
+            });
+            selectedNode = selectedNodes[selectedNodes.length - 1];
+            selectedNodes.forEach(node => document.getElementById(`node-${node.id}`)?.classList.add('selected'));
+            showProperties(selectedNode);
+            redrawConnections();
+            closeQuickMenu();
+        }
+
+        function deleteSelectedNodes() {
+            const targets = [...selectedNodes];
+            if (!targets.length) return;
+            pushUndoState();
+            targets.forEach(node => deleteNode(node, true, true));
+            clearSelection();
+            redrawConnections();
+            closeQuickMenu();
+        }
+
+        function clearCanvas() {
+            if (!nodes.length && !connections.length) return;
+            pushUndoState();
+            nodes = [];
+            connections = [];
+            canvas.querySelectorAll('.node').forEach(node => node.remove());
+            clearSelection();
+            redrawConnections();
+            closeQuickMenu();
         }
 
         // Canvas transform
@@ -730,6 +949,18 @@
 
         // Pan controls
         canvasContainer.addEventListener('mousedown', (e) => {
+            if (e.button === 0 && e.shiftKey && (e.target === canvasContainer || e.target === canvas || e.target === svg)) {
+                selectingArea = true;
+                selectionStart = { x: e.clientX, y: e.clientY };
+                const box = document.getElementById('selection-box');
+                box.style.display = 'block';
+                box.style.left = e.clientX + 'px';
+                box.style.top = e.clientY + 'px';
+                box.style.width = '0px';
+                box.style.height = '0px';
+                e.preventDefault();
+                return;
+            }
             if (e.target === canvasContainer || e.target === canvas || e.target === svg) {
                 if (isPlacingNode && pendingNodeType) {
                     // Place the node where released
@@ -740,10 +971,55 @@
                 }
 
                 isPanning = true;
+                canvasPointerDownAt = Date.now();
+                canvasWasDragged = false;
                 lastMouseX = e.clientX;
                 lastMouseY = e.clientY;
                 canvasContainer.classList.add('grabbing');
             }
+        });
+
+        document.addEventListener('mousemove', (e) => {
+            if (!selectingArea || !selectionStart) return;
+            const left = Math.min(selectionStart.x, e.clientX);
+            const top = Math.min(selectionStart.y, e.clientY);
+            const width = Math.abs(e.clientX - selectionStart.x);
+            const height = Math.abs(e.clientY - selectionStart.y);
+            const box = document.getElementById('selection-box');
+            box.style.left = left + 'px'; box.style.top = top + 'px';
+            box.style.width = width + 'px'; box.style.height = height + 'px';
+            selectedNodes = nodes.filter(node => {
+                const rect = document.getElementById(`node-${node.id}`)?.getBoundingClientRect();
+                return rect && rect.left < left + width && rect.right > left && rect.top < top + height && rect.bottom > top;
+            });
+            selectedNode = selectedNodes[selectedNodes.length - 1] || null;
+            document.querySelectorAll('.node').forEach(n => n.classList.toggle('selected', selectedNodes.some(node => `node-${node.id}` === n.id)));
+        });
+
+        // A blank-canvas press becomes a pan when the pointer moves. Keep the
+        // properties panel open for pans and intentional holds.
+        document.addEventListener('mousemove', (e) => {
+            if (!isPanning) return;
+            if (Math.abs(e.clientX - lastMouseX) > 2 || Math.abs(e.clientY - lastMouseY) > 2) {
+                canvasWasDragged = true;
+            }
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (selectingArea) {
+                selectingArea = false;
+                selectionStart = null;
+                suppressCanvasClick = true;
+                document.getElementById('selection-box').style.display = 'none';
+            }
+        });
+
+        canvasContainer.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            openQuickMenu(e.clientX, e.clientY);
+        });
+        document.addEventListener('mousedown', (e) => {
+            if (!e.target.closest('#quick-menu')) closeQuickMenu();
         });
 
         document.addEventListener('mousemove', (e) => {
@@ -963,9 +1239,10 @@
                 const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
                 const dx = x2 - x1;
                 const dy = y2 - y1;
-                const curve = Math.abs(dx) * 0.5;
-
-                const d = `M ${x1} ${y1} C ${x1 + curve} ${y1}, ${x2 - curve} ${y2}, ${x2} ${y2}`;
+                // Outputs leave the bottom and inputs enter the top. A vertical
+                // midpoint keeps the curve smooth even when the target is left.
+                const curveMidY = y1 + (y2 - y1) * 0.5;
+                const d = `M ${x1} ${y1} C ${x1} ${curveMidY}, ${x2} ${curveMidY}, ${x2} ${y2}`;
                 path.setAttribute('d', d);
                 path.setAttribute('stroke', '#28a745');
                 path.setAttribute('stroke-width', '2');
@@ -1041,11 +1318,23 @@
             document.getElementById('preview-frame').srcdoc = '';
         }
 
+        function openDocumentation() {
+            document.getElementById('documentation-modal').classList.add('open');
+        }
+
+        function closeDocumentation() {
+            document.getElementById('documentation-modal').classList.remove('open');
+        }
+
         document.getElementById('preview-modal').addEventListener('click', (event) => {
             if (event.target.id === 'preview-modal') closePreview();
         });
+        document.getElementById('documentation-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'documentation-modal') closeDocumentation();
+        });
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closePreview();
+            if (event.key === 'Escape') closeDocumentation();
         });
 
         // Properties panel
@@ -1505,7 +1794,7 @@
             container.appendChild(helpText);
         }
 
-        function deleteNode(node, skipConfirm = false) {
+        function deleteNode(node, skipConfirm = false, keepSelection = false) {
             if (!skipConfirm && !confirm('Delete this node?')) return;
 
             // Remove connections
@@ -1520,7 +1809,8 @@
 
             // Close properties
             propertiesPanel.classList.remove('open');
-            selectedNode = null;
+            selectedNodes = selectedNodes.filter(item => item.id !== node.id);
+            if (!keepSelection) selectedNode = null;
 
             redrawConnections();
         }
@@ -1528,6 +1818,18 @@
         // Close properties panel when clicking outside
         canvasContainer.addEventListener('click', (e) => {
             if (e.target === canvasContainer || e.target === canvas) {
+                if (canvasWasDragged || Date.now() - canvasPointerDownAt >= 250) {
+                    canvasWasDragged = false;
+                    return;
+                }
+                if (nodeWasDragged) {
+                    nodeWasDragged = false;
+                    return;
+                }
+                if (suppressCanvasClick) {
+                    suppressCanvasClick = false;
+                    return;
+                }
                 propertiesPanel.classList.remove('open');
                 document.querySelectorAll('.node').forEach(n => n.classList.remove('selected'));
                 selectedNode = null;
