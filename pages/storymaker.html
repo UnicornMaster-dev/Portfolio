@@ -242,6 +242,10 @@
         }
         #gemini-modal.open { display: flex; }
         .gemini-window { max-height: 90vh; }
+        #text-transfer-modal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:24px; }
+        #text-transfer-modal.open { display:flex; }
+        .transfer-window { width:min(760px,96vw); }
+        .transfer-area { min-height:360px; width:100%; font-family:monospace; font-size:12px; }
         .documentation-window {
             width: min(720px, 96vw);
             max-height: 90vh;
@@ -377,6 +381,9 @@
         <button class="toolbar-btn" onclick="openDocumentation()">Documentation</button>
         <button class="toolbar-btn" onclick="saveProject()">Save JSON</button>
         <button class="toolbar-btn" onclick="loadProject()">Load JSON</button>
+        <button class="toolbar-btn" onclick="openTextTransfer('export')">Export Text</button>
+        <button class="toolbar-btn" onclick="openTextTransfer('export-html')">Export HTML Text</button>
+        <button class="toolbar-btn" onclick="openTextTransfer('import')">Import Text</button>
         <button class="toolbar-btn" onclick="clearCanvas()">Clear Canvas</button>
         <button class="toolbar-btn secondary" onclick="openGeminiGenerator()">Generate with Gemini</button>
     </div>
@@ -441,11 +448,22 @@
             <div class="documentation-body">
                 <p>Enter a Gemini API key and describe the story you want. The key is stored only in this browser’s local storage and is sent directly to Google’s Gemini API.</p>
                 <div class="property-group"><label class="property-label" for="gemini-key">Gemini API key</label><input id="gemini-key" class="property-input" type="password" autocomplete="off" placeholder="AIza..."></div>
-                <div class="property-group"><label class="property-label" for="gemini-model">Model</label><select id="gemini-model" class="property-input"><option value="gemini-2.5-flash">Gemini 2.5 Flash</option><option value="gemini-2.5-pro">Gemini 2.5 Pro</option><option value="gemini-2.0-flash">Gemini 2.0 Flash</option></select></div>
+                <div class="property-group"><label class="property-label" for="gemini-model">Model</label><select id="gemini-model" class="property-input"><option value="gemini-2.5-flash">Gemini 2.5 Flash</option><option value="gemini-2.5-pro">Gemini 2.5 Pro</option><option value="gemini-2.0-flash">Gemini 2.0 Flash</option><option value="gemini-3.8-flash">Gemini 3.8 Flash</option></select></div>
                 <div class="property-group"><label class="property-label" for="gemini-prompt">Story prompt</label><textarea id="gemini-prompt" class="property-input property-textarea" style="min-height: 140px" placeholder="A mystery in a remote lighthouse with three possible endings..."></textarea></div>
                 <label style="display:flex; gap:8px; align-items:center; margin-bottom:16px; color:#ddd;"><input id="gemini-use-current" type="checkbox"> Modify and expand the current canvas</label>
                 <p id="gemini-status" style="color:#aaa"></p>
                 <button class="toolbar-btn" id="gemini-generate-button" onclick="generateStoryWithGemini()">Generate Nodes</button>
+            </div>
+        </div>
+    </div>
+    <div id="text-transfer-modal" role="dialog" aria-modal="true" aria-label="Text project transfer">
+        <div class="documentation-window transfer-window">
+            <div class="preview-header"><strong id="text-transfer-title">Project Text</strong><button class="btn-small" onclick="closeTextTransfer()">Close</button></div>
+            <div class="documentation-body">
+                <p id="text-transfer-help">Copy this project text and paste it somewhere safe.</p>
+                <textarea id="text-transfer-area" class="property-input property-textarea transfer-area" spellcheck="false"></textarea>
+                <button class="toolbar-btn" id="text-transfer-action" onclick="performTextTransfer()">Copy to Clipboard</button>
+                <span id="text-transfer-status" style="color:#aaa; margin-left:10px"></span>
             </div>
         </div>
     </div>
@@ -1356,6 +1374,44 @@
             document.getElementById('gemini-modal').classList.remove('open');
         }
 
+        let textTransferMode = 'export';
+        function openTextTransfer(mode) {
+            textTransferMode = mode;
+            const isExport = mode === 'export' || mode === 'export-html';
+            const isHtmlExport = mode === 'export-html';
+            const title = document.getElementById('text-transfer-title');
+            const help = document.getElementById('text-transfer-help');
+            const action = document.getElementById('text-transfer-action');
+            const area = document.getElementById('text-transfer-area');
+            document.getElementById('text-transfer-status').textContent = '';
+            title.textContent = isHtmlExport ? 'Export Final HTML Story' : isExport ? 'Export Project as Text' : 'Import Project from Text';
+            help.textContent = isHtmlExport ? 'Copy this complete HTML story and paste it into another editor, Trinket, or an HTML file.' : isExport ? 'Copy this JSON text and paste it into another editor session.' : 'Paste exported project JSON here, then click Import Project.';
+            action.textContent = isExport ? 'Copy to Clipboard' : 'Import Project';
+            area.value = isHtmlExport ? generateStoryHTML() : isExport ? JSON.stringify({ nodes, connections, nextNodeId, nextConnectionId }, null, 2) : '';
+            document.getElementById('text-transfer-modal').classList.add('open');
+            setTimeout(() => area.focus(), 0);
+        }
+        function closeTextTransfer() { document.getElementById('text-transfer-modal').classList.remove('open'); }
+        async function performTextTransfer() {
+            const area = document.getElementById('text-transfer-area');
+            const status = document.getElementById('text-transfer-status');
+            if (textTransferMode === 'export') {
+                try { await navigator.clipboard.writeText(area.value); status.textContent = 'Copied!'; }
+                catch { area.select(); status.textContent = 'Select the text and copy it manually.'; }
+                return;
+            }
+            try {
+                const project = JSON.parse(area.value);
+                if (!Array.isArray(project.nodes) || !Array.isArray(project.connections)) throw new Error('Text is not a valid story project.');
+                pushUndoState();
+                nodes = project.nodes; connections = project.connections;
+                nextNodeId = project.nextNodeId || Math.max(0, ...nodes.map(node => Number(node.id) || 0)) + 1;
+                nextConnectionId = project.nextConnectionId || Math.max(0, ...connections.map(connection => Number(connection.id) || 0)) + 1;
+                canvas.querySelectorAll('.node').forEach(node => node.remove());
+                clearSelection(); nodes.forEach(node => renderNode(node)); redrawConnections(); closeTextTransfer();
+            } catch (error) { status.textContent = 'Import failed: ' + error.message; }
+        }
+
         async function generateStoryWithGemini() {
             const key = document.getElementById('gemini-key').value.trim();
             const prompt = document.getElementById('gemini-prompt').value.trim();
@@ -1462,10 +1518,14 @@
         document.getElementById('gemini-modal').addEventListener('click', (event) => {
             if (event.target.id === 'gemini-modal') closeGeminiGenerator();
         });
+        document.getElementById('text-transfer-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'text-transfer-modal') closeTextTransfer();
+        });
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closePreview();
             if (event.key === 'Escape') closeDocumentation();
             if (event.key === 'Escape') closeGeminiGenerator();
+            if (event.key === 'Escape') closeTextTransfer();
         });
 
         // Properties panel
@@ -2380,9 +2440,9 @@
             goToNode(startNode.id);
         }
     <\/script>
-</body>
+${'<' + '/body>'}
 
-</html>`;
+${'<' + '/html>'}`;
         }
 
         // Save/Load project
