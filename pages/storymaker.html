@@ -13,6 +13,14 @@
         }
 
         body {
+            user-select: none;
+        }
+
+        input, textarea, select, [contenteditable="true"] {
+            user-select: text;
+        }
+
+        body {
             font-family: Arial, sans-serif;
             overflow: hidden;
             background: #1e1e1e;
@@ -486,6 +494,8 @@
         let canvasWasDragged = false;
         let nextNodeId = 1;
         let nextConnectionId = 1;
+        let lastCanvasPointer = { x: 600, y: 300 };
+        let redrawQueued = false;
 
         // Canvas state
         let scale = 1;
@@ -512,6 +522,7 @@
         let pendingNodeType = null;
         let isPlacingNode = false;
         let ghostNode = null;
+        let nodeDragStart = null;
 
         function addNode(type) {
             // Don't use onclick, instead use mousedown on buttons
@@ -522,6 +533,7 @@
             e.preventDefault();
             pendingNodeType = type;
             isPlacingNode = true;
+            nodeDragStart = { x: e.clientX, y: e.clientY };
 
             // Create ghost node that follows cursor
             ghostNode = document.createElement('div');
@@ -544,6 +556,10 @@
         }
 
         function createNodeAt(type, x, y) {
+            if (type === 'start' && nodes.some(node => node.type === 'start')) {
+                cancelNodeDrag();
+                return;
+            }
             const node = {
                 id: nextNodeId++,
                 type: type,
@@ -554,6 +570,14 @@
 
             nodes.push(node);
             renderNode(node);
+        }
+
+        function cancelNodeDrag() {
+            isPlacingNode = false;
+            pendingNodeType = null;
+            nodeDragStart = null;
+            if (ghostNode) ghostNode.remove();
+            ghostNode = null;
         }
 
         function getDefaultNodeData(type) {
@@ -660,8 +684,7 @@
 
             // Adjust node height for button nodes with multiple outputs
             if (node.type === 'button' && outputCount > 1) {
-                const minHeight = 60 + (outputCount - 1) * 40;
-                nodeEl.style.minHeight = minHeight + 'px';
+                nodeEl.style.width = (180 + (outputCount - 1) * 12) + 'px';
             }
             if (node.type === 'random' && outputCount > 1) {
                 const minHeight = 60 + (outputCount - 1) * 40;
@@ -759,12 +782,12 @@
 
             // Adjust node height for button nodes with multiple outputs
             if (node.type === 'button' && outputCount > 1) {
-                const minHeight = 60 + (outputCount - 1) * 40;
-                nodeEl.style.minHeight = minHeight + 'px';
+                nodeEl.style.width = (180 + (outputCount - 1) * 12) + 'px';
             } else if (node.type === 'random' && outputCount > 1) {
                 const minHeight = 60 + (outputCount - 1) * 40;
                 nodeEl.style.minHeight = minHeight + 'px';
             } else {
+                nodeEl.style.width = '';
                 nodeEl.style.minHeight = '';
             }
 
@@ -830,7 +853,7 @@
                     nodeEl.style.top = item.node.y + 'px';
                 });
 
-                redrawConnections();
+                scheduleRedrawConnections();
             } else if (isConnecting && tempLine) {
                 updateTempLine(e);
             } else if (isPlacingNode && ghostNode) {
@@ -890,9 +913,31 @@
             undoStack.push(projectSnapshot()); restoreSnapshot(redoStack.pop());
         }
         document.addEventListener('keydown', (e) => {
-            if (!(e.ctrlKey || e.metaKey) || e.key.toLowerCase() !== 'z') return;
+            const editingText = e.target.matches && e.target.matches('input, textarea, [contenteditable="true"]');
+            if (!(e.ctrlKey || e.metaKey)) return;
+            if (editingText || e.key.toLowerCase() !== 'z') return;
             e.preventDefault();
             e.shiftKey ? redo() : undo();
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (!(e.ctrlKey || e.metaKey) || (e.target.matches && e.target.matches('input, textarea, [contenteditable="true"]'))) return;
+            if (e.key.toLowerCase() === 'c') {
+                if (!selectedNodes.length) return;
+                e.preventDefault();
+                copySelectedNodes();
+            } else if (e.key.toLowerCase() === 'v') {
+                if (!copiedNodes.length) return;
+                e.preventDefault();
+                pasteCopiedNodes();
+            }
+        });
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key !== 'Backspace' || (e.target.matches && e.target.matches('input, textarea, [contenteditable="true"]'))) return;
+            if (!selectedNodes.length) return;
+            e.preventDefault();
+            deleteSelectedNodes();
         });
 
         function openQuickMenu(x, y) {
@@ -908,6 +953,10 @@
 
         function copySelectedNodes() {
             copiedNodes = selectedNodes.map(node => JSON.parse(JSON.stringify(node)));
+            const copiedIds = new Set(selectedNodes.map(node => node.id));
+            copiedNodes.connections = connections
+                .filter(connection => copiedIds.has(connection.fromNode) && copiedIds.has(connection.toNode))
+                .map(connection => JSON.parse(JSON.stringify(connection)));
             closeQuickMenu();
         }
 
@@ -915,14 +964,26 @@
             if (!copiedNodes.length) return;
             pushUndoState();
             clearSelection();
-            copiedNodes.forEach((source, index) => {
+            const sourceNodes = copiedNodes;
+            const sourceCenter = sourceNodes.reduce((result, node) => ({
+                x: result.x + node.x / sourceNodes.length,
+                y: result.y + node.y / sourceNodes.length
+            }), { x: 0, y: 0 });
+            const cursor = lastCanvasPointer;
+            const idMap = new Map();
+            sourceNodes.forEach((source) => {
                 const copy = JSON.parse(JSON.stringify(source));
                 copy.id = nextNodeId++;
-                copy.x += 30;
-                copy.y += 30;
+                copy.x += cursor.x - sourceCenter.x;
+                copy.y += cursor.y - sourceCenter.y;
                 nodes.push(copy);
                 renderNode(copy);
                 selectedNodes.push(copy);
+                idMap.set(source.id, copy.id);
+            });
+            (copiedNodes.connections || []).forEach((source) => {
+                connections.push({ ...JSON.parse(JSON.stringify(source)), id: nextConnectionId++,
+                    fromNode: idMap.get(source.fromNode), toNode: idMap.get(source.toNode) });
             });
             selectedNode = selectedNodes[selectedNodes.length - 1];
             selectedNodes.forEach(node => document.getElementById(`node-${node.id}`)?.classList.add('selected'));
@@ -973,7 +1034,7 @@
         }
 
         function zoomOut() {
-            scale = Math.max(scale / 1.2, 0.3);
+            scale = Math.max(scale / 1.2, 0.1);
             updateCanvasTransform();
             redrawConnections();
         }
@@ -988,6 +1049,7 @@
 
         // Pan controls
         canvasContainer.addEventListener('mousedown', (e) => {
+            lastCanvasPointer = { x: screenToCanvasX(e.clientX), y: screenToCanvasY(e.clientY) };
             if (e.button === 0 && e.shiftKey && (e.target === canvasContainer || e.target === canvas || e.target === svg)) {
                 selectingArea = true;
                 selectionStart = { x: e.clientX, y: e.clientY };
@@ -1001,14 +1063,6 @@
                 return;
             }
             if (e.target === canvasContainer || e.target === canvas || e.target === svg) {
-                if (isPlacingNode && pendingNodeType) {
-                    // Place the node where released
-                    const x = (e.clientX - panX) / scale;
-                    const y = (e.clientY - panY - 60) / scale;
-                    createNodeAt(pendingNodeType, x - 90, y - 30);
-                    return;
-                }
-
                 isPanning = true;
                 canvasPointerDownAt = Date.now();
                 canvasWasDragged = false;
@@ -1019,6 +1073,9 @@
         });
 
         document.addEventListener('mousemove', (e) => {
+            if (e.target.closest && e.target.closest('#canvas-container')) {
+                lastCanvasPointer = { x: screenToCanvasX(e.clientX), y: screenToCanvasY(e.clientY) };
+            }
             if (!selectingArea || !selectionStart) return;
             const left = Math.min(selectionStart.x, e.clientX);
             const top = Math.min(selectionStart.y, e.clientY);
@@ -1076,19 +1133,13 @@
 
         document.addEventListener('mouseup', (e) => {
             if (isPlacingNode) {
-                // Place at current mouse position
-                if (pendingNodeType && ghostNode) {
+                const dragDistance = nodeDragStart ? Math.hypot(e.clientX - nodeDragStart.x, e.clientY - nodeDragStart.y) : 0;
+                if (pendingNodeType && ghostNode && dragDistance >= 8 && e.target.closest('#canvas-container')) {
                     const x = (e.clientX - panX) / scale;
                     const y = (e.clientY - panY - 60) / scale;
                     createNodeAt(pendingNodeType, x - 90, y - 30);
                 }
-
-                isPlacingNode = false;
-                pendingNodeType = null;
-                if (ghostNode) {
-                    ghostNode.remove();
-                    ghostNode = null;
-                }
+                cancelNodeDrag();
             }
 
             isPanning = false;
@@ -1099,7 +1150,7 @@
         canvasContainer.addEventListener('wheel', (e) => {
             e.preventDefault();
             const delta = e.deltaY > 0 ? 0.9 : 1.1;
-            const newScale = Math.max(0.3, Math.min(3, scale * delta));
+            const newScale = Math.max(0.1, Math.min(3, scale * delta));
 
             if (newScale !== scale) {
                 const rect = canvasContainer.getBoundingClientRect();
@@ -1247,9 +1298,10 @@
             // Clear existing connections
             svg.querySelectorAll('.connection-line, .connection-remove').forEach(el => el.remove());
 
+            const nodeById = new Map(nodes.map(node => [node.id, node]));
             connections.forEach(conn => {
-                const fromNode = nodes.find(n => n.id === conn.fromNode);
-                const toNode = nodes.find(n => n.id === conn.toNode);
+                const fromNode = nodeById.get(conn.fromNode);
+                const toNode = nodeById.get(conn.toNode);
 
                 if (!fromNode || !toNode) return;
 
@@ -1331,6 +1383,15 @@
                 });
 
                 svg.appendChild(removeBtn);
+            });
+        }
+
+        function scheduleRedrawConnections() {
+            if (redrawQueued) return;
+            redrawQueued = true;
+            requestAnimationFrame(() => {
+                redrawQueued = false;
+                redrawConnections();
             });
         }
 
@@ -1562,6 +1623,28 @@
                     break;
             }
 
+            const waitGroup = document.createElement('div');
+            waitGroup.className = 'property-group';
+            waitGroup.style.marginTop = '18px';
+            const waitLabel = document.createElement('label');
+            waitLabel.className = 'property-label';
+            waitLabel.textContent = 'Wait Time (ms)';
+            const waitInput = document.createElement('input');
+            waitInput.type = 'number';
+            waitInput.className = 'property-input';
+            waitInput.min = '50';
+            waitInput.max = '5000';
+            waitInput.step = '50';
+            waitInput.value = Math.min(5000, Math.max(50, node.data.wait || 1000));
+            waitInput.oninput = (e) => {
+                const value = Math.min(5000, Math.max(50, Number(e.target.value) || 50));
+                node.data.wait = value;
+                e.target.value = value;
+            };
+            waitGroup.appendChild(waitLabel);
+            waitGroup.appendChild(waitInput);
+            content.appendChild(waitGroup);
+
             // Add delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-small btn-remove';
@@ -1594,6 +1677,7 @@
 
             group.appendChild(label);
             group.appendChild(textarea);
+
             container.appendChild(group);
         }
 
@@ -1738,6 +1822,17 @@
 
             group.appendChild(label);
             group.appendChild(textarea);
+            const urlLabel = document.createElement('label');
+            urlLabel.className = 'property-label';
+            urlLabel.textContent = 'Image URL';
+            urlLabel.style.marginTop = '10px';
+            const urlInput = document.createElement('input');
+            urlInput.className = 'property-input';
+            urlInput.value = node.data.url || '';
+            urlInput.placeholder = 'https://example.com/image.png';
+            urlInput.oninput = (e) => { node.data.url = e.target.value; };
+            group.appendChild(urlLabel);
+            group.appendChild(urlInput);
             group.appendChild(altLabel);
             group.appendChild(altInput);
             container.appendChild(group);
@@ -1746,7 +1841,7 @@
             helpText.style.fontSize = '11px';
             helpText.style.color = '#888';
             helpText.style.marginTop = '10px';
-            helpText.textContent = 'Paste base64 encoded image data starting with "data:image/..."';
+            helpText.textContent = 'Use either Base64 data or an image URL. URL takes precedence when both are provided.';
             container.appendChild(helpText);
         }
 
@@ -2205,6 +2300,19 @@
         function setVar(name, value) {
             variables[name] = value;
         }
+
+        function nodeWait(node, fallback) {
+            const value = Number(node && node.data && node.data.wait);
+            return Number.isFinite(value) ? Math.min(5000, Math.max(50, value)) : fallback;
+        }
+
+        function interpolate(text) {
+            return String(text || '').replace(/\{([^{}]+)\}/g, (match, rawName) => {
+                const name = rawName.trim();
+                const value = getVar(name);
+                return value === undefined || value === null ? match : String(value);
+            });
+        }
         
         function addMessage(content) {
             const messagesDiv = document.getElementById('chat-messages');
@@ -2260,20 +2368,20 @@
         function handleStart(node) {
             const nextNode = getNextNode(node.id);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 500);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 500));
             }
         }
         
         function handleText(node) {
-            addMessage('<div class="message-content">' + escapeHtml(node.data.text) + '</div>');
+            addMessage('<div class="message-content">' + escapeHtml(interpolate(node.data.text)) + '</div>');
             const nextNode = getNextNode(node.id);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 1000);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 1000));
             }
         }
         
         function handleButton(node) {
-            let content = '<div class="message-content">' + escapeHtml(node.data.text) + '</div>';
+            let content = '<div class="message-content">' + escapeHtml(interpolate(node.data.text)) + '</div>';
             content += '<div class="choices">';
             
             node.data.choices.forEach((choice, index) => {
@@ -2298,28 +2406,33 @@
             });
             
             // Save to variable if specified
-            if (node.data.variable) {
-                setVar(node.data.variable, choiceLabel);
+            if (node.data.variable && String(node.data.variable).trim()) {
+                // Read the choice directly so the stored value is reliable even
+                // when a label contains quotes or other HTML-sensitive text.
+                const variableName = String(node.data.variable).trim();
+                setVar(variableName, choice.label);
+                setVar(node.data.variable, choice.label);
             }
             
             // Show response text if any
             if (choice.text) {
-                addMessage('<div class="message-content">' + escapeHtml(choice.text) + '</div>');
+                addMessage('<div class="message-content">' + escapeHtml(interpolate(choice.text)) + '</div>');
             }
             
             const nextNode = getNextNode(nodeId, choiceIndex);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), choice.text ? 1000 : 500);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, choice.text ? 1000 : 500));
             }
         }
         
         function handleImage(node) {
-            if (node.data.base64) {
-                addMessage('<div class="message-content"><img src="' + node.data.base64 + '" alt="' + escapeHtml(node.data.alt) + '"></div>');
+            const imageSource = node.data.url || node.data.base64;
+            if (imageSource) {
+                addMessage('<div class="message-content"><img src="' + escapeHtml(imageSource) + '" alt="' + escapeHtml(interpolate(node.data.alt)) + '"></div>');
             }
             const nextNode = getNextNode(node.id);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 1000);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 1000));
             }
         }
         
@@ -2357,7 +2470,7 @@
             
             const nextNode = getNextNode(node.id, selectedIndex);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 500);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 500));
             }
         }
         
@@ -2394,7 +2507,7 @@
             
             const nextNode = getNextNode(nodeId);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 500);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 500));
             }
         }
         
@@ -2424,7 +2537,7 @@
             const portIndex = result ? 0 : 1;
             const nextNode = getNextNode(node.id, portIndex);
             if (nextNode) {
-                setTimeout(() => goToNode(nextNode), 300);
+                setTimeout(() => goToNode(nextNode), nodeWait(node, 300));
             }
         }
         
