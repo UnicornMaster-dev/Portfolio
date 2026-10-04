@@ -60,7 +60,6 @@
             padding: 10px;
             border-radius: 5px;
             font-size: 12px;
-            z-index: 100;
         }
         
         .fps-counter {
@@ -277,85 +276,10 @@
             }
         }
 
-        class WebGLStrokeRenderer {
-            constructor(canvas) {
-                this.canvas = canvas;
-                this.gl = canvas.getContext('webgl', { alpha: true, antialias: true });
-                this.ready = false;
-                if (!this.gl) return;
-                const vertex = `attribute vec2 a_position; uniform vec2 u_resolution; uniform float u_pointSize; void main(){ vec2 p=a_position/u_resolution*2.0-1.0; gl_Position=vec4(p*vec2(1.0,-1.0),0.0,1.0); gl_PointSize=u_pointSize; }`;
-                const fragment = `precision mediump float; uniform vec4 u_color; uniform float u_round; void main(){ if(u_round>0.5 && distance(gl_PointCoord,vec2(0.5))>0.5) discard; gl_FragColor=u_color; }`;
-                const compile = (type, source) => { const s=this.gl.createShader(type); this.gl.shaderSource(s,source); this.gl.compileShader(s); return s; };
-                const program = this.gl.createProgram();
-                this.gl.attachShader(program, compile(this.gl.VERTEX_SHADER, vertex));
-                this.gl.attachShader(program, compile(this.gl.FRAGMENT_SHADER, fragment));
-                this.gl.linkProgram(program);
-                if (!this.gl.getProgramParameter(program, this.gl.LINK_STATUS)) return;
-                this.program = program;
-                this.position = this.gl.getAttribLocation(program, 'a_position');
-                this.resolution = this.gl.getUniformLocation(program, 'u_resolution');
-                this.color = this.gl.getUniformLocation(program, 'u_color');
-                this.pointSizeUniform = this.gl.getUniformLocation(program, 'u_pointSize');
-                this.roundUniform = this.gl.getUniformLocation(program, 'u_round');
-                this.buffer = this.gl.createBuffer();
-                this.ready = true;
-            }
-
-            resize() {
-                if (!this.ready) return;
-                const dpr = Math.min(window.devicePixelRatio || 1, 2);
-                const w = Math.max(1, Math.floor(window.innerWidth * dpr));
-                const h = Math.max(1, Math.floor(window.innerHeight * dpr));
-                this.canvas.width = w; this.canvas.height = h;
-                this.canvas.style.width = window.innerWidth + 'px'; this.canvas.style.height = window.innerHeight + 'px';
-                this.gl.viewport(0, 0, w, h);
-            }
-
-            colorFor(value) {
-                if (value && value[0] === '#') {
-                    const n = parseInt(value.slice(1), 16);
-                    return [((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255, 1];
-                }
-                const m = String(value || '').match(/hsl\(([-\d.]+),\s*([\d.]+)%,\s*([\d.]+)%/);
-                if (m) { const h=(+m[1]%360+360)%360/60, s=+m[2]/100, l=+m[3]/100, c=(1-Math.abs(2*l-1))*s, x=c*(1-Math.abs(h%2-1)), q=l-c/2, rgb=h<1?[c,x,0]:h<2?[x,c,0]:h<3?[0,c,x]:h<4?[0,x,c]:h<5?[x,0,c]:[c,0,x]; return [rgb[0]+q,rgb[1]+q,rgb[2]+q,1]; }
-                return [1, 1, 1, 1];
-            }
-
-            render(strokes, currentStroke, owner) {
-                if (!this.ready) return;
-                this.resize();
-                const gl=this.gl, w=this.canvas.width, h=this.canvas.height;
-                gl.clearColor(0,0,0,0); gl.clear(gl.COLOR_BUFFER_BIT); gl.useProgram(this.program);
-                gl.uniform2f(this.resolution, w, h);
-                gl.bindBuffer(gl.ARRAY_BUFFER, this.buffer);
-                gl.enableVertexAttribArray(this.position);
-                gl.vertexAttribPointer(this.position, 2, gl.FLOAT, false, 8, 0);
-                const all = currentStroke ? strokes.concat([currentStroke]) : strokes;
-                for (const stroke of all) {
-                    if (!stroke || !stroke.points || stroke.points.length < 2) continue;
-                    const c=this.colorFor(stroke.color), width=Math.max(0.25, Math.min(10000, stroke.width*owner.camera.zoom*(window.devicePixelRatio || 1)));
-                    const points=stroke.points.map(p=>{const q=owner.worldToScreen(p); return {x:q.x*(w/window.innerWidth),y:q.y*(h/window.innerHeight)};});
-                    const data=[];
-                    for(let i=0;i<points.length;i++){
-                        const p=points[i], prev=points[Math.max(0,i-1)], next=points[Math.min(points.length-1,i+1)];
-                        const dx=next.x-prev.x, dy=next.y-prev.y, len=Math.hypot(dx,dy)||1, nx=-dy/len*width/2, ny=dx/len*width/2;
-                        data.push(p.x+nx,p.y+ny,p.x-nx,p.y-ny);
-                    }
-                    gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(data),gl.STREAM_DRAW); gl.uniform4f(this.color,c[0],c[1],c[2],stroke.style==='marker'?.45:1); gl.uniform1f(this.roundUniform,0); gl.drawArrays(gl.TRIANGLE_STRIP,0,data.length/2);
-                    // Round caps and joins are rendered as circular point sprites.
-                    if (stroke.style !== 'pencil') {
-                        const centers=[]; for (const p of points) centers.push(p.x,p.y);
-                        gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(centers),gl.STREAM_DRAW); gl.uniform1f(this.pointSizeUniform,width); gl.uniform1f(this.roundUniform,1); gl.drawArrays(gl.POINTS,0,points.length);
-                    }
-                }
-            }
-        }
-
         class InfiniteCanvas {
             constructor(canvas) {
                 this.canvas = canvas;
                 this.ctx = canvas.getContext('2d');
-                this.glRenderer = new WebGLStrokeRenderer(document.getElementById('glCanvas'));
                 this.setupCanvas();
                 
                 // Camera system
@@ -394,6 +318,7 @@
                 this.savePending = false;
                 this.saveInProgress = false;
                 this.saveTimer = null;
+                this.dirty = false;
                 this.maxPointsPerStroke = 4000;
                 this.maxPersistedPoints = 150000;
                 // Durable browser persistence (IndexedDB supports much larger drawings than localStorage).
@@ -416,7 +341,6 @@
                 this.canvas.height = window.innerHeight;
                 this.ctx.lineCap = 'round';
                 this.ctx.lineJoin = 'round';
-                if (this.glRenderer) this.glRenderer.resize();
             }
             
             setupEventListeners() {
@@ -579,6 +503,7 @@
                 if (this.isDrawing && this.currentStroke) {
                     this.strokes.push(this.currentStroke);
                     this.currentStroke = null;
+                    this.dirty = true;
                     this.saveState();
                     this.saveToStorage();
                 }
@@ -604,6 +529,7 @@
                 });
                 
                 if (erasedSomething) {
+                    this.dirty = true;
                     this.saveState();
                     this.saveToStorage(); // Auto-save after erasing
                     this.render();
@@ -702,11 +628,9 @@
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.drawGrid();
                 
-                if (this.glRenderer.ready) {
-                    this.glRenderer.render(this.strokes, this.currentStroke, this);
-                } else {
-                    [...this.strokes, this.currentStroke].filter(Boolean).forEach(stroke => this.drawStroke(stroke));
-                }
+                [...this.strokes, this.currentStroke].filter(Boolean).forEach(stroke => {
+                    this.drawStroke(stroke);
+                });
                 
                 this.updateFPS();
             }
@@ -805,7 +729,7 @@
             startAutoSave() {
                 // Auto-save periodically
                 setInterval(() => {
-                    if (this.autoSaveEnabled && Date.now() - this.lastSaveTime > this.saveInterval) {
+                    if (this.autoSaveEnabled && this.dirty && Date.now() - this.lastSaveTime > this.saveInterval) {
                         this.saveToStorage();
                     }
                 }, 1000);
@@ -869,6 +793,7 @@
                     const db = await this.dbReady;
                     await new Promise((resolve, reject) => { const tx = db.transaction('drawings', 'readwrite'); tx.objectStore('drawings').put(data, 'current'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
                     this.lastSaveTime = Date.now();
+                    this.dirty = false;
                     
                     // Update info to show save status
                     this.showSaveStatus();
@@ -928,6 +853,9 @@
                         
                         const loadTime = new Date(savedData.timestamp).toLocaleString();
                         console.log(`Loaded drawing from ${loadTime} with ${this.strokes.length} strokes`);
+                        this.saveState();
+                        this.render();
+                        this.updateInfo();
                     }
                 } catch (error) {
                     console.error('Failed to load from storage:', error);
@@ -969,8 +897,7 @@
                 info.innerHTML = `
                     Zoom: ${this.camera.zoom.toExponential(2)}x<br>
                     Position: (${cameraFloat.x.toFixed(4)}, ${cameraFloat.y.toFixed(4)})<br>
-                    Precision: ${precisionLevel} (chunked)<br>
-                    Renderer: ${this.glRenderer.ready ? 'WebGL shader' : 'Canvas 2D fallback'}<br>
+                    Precision: ${precisionLevel}<br>
                     Strokes: ${this.strokes.length}
                 `;
             }
@@ -1292,7 +1219,6 @@
             canvas.updateCursor();
             canvas.updateRandomColorButton();
             canvas.updateUndoRedoButtons();
-            canvas.updateInfo();
         }
         
         function setTool(tool) {
