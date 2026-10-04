@@ -13,11 +13,15 @@
             font-family: monospace;
             color: white;
         }
-        
         canvas {
             cursor: crosshair;
             background: #0a0a0a;
+            touch-action: none;
+            display: block;
         }
+
+        #glCanvas { position: absolute; inset: 0; z-index: 0; pointer-events: none; }
+        #canvas { position: absolute; inset: 0; z-index: 1; background: transparent; }
         
         .controls {
             position: absolute;
@@ -156,9 +160,18 @@
         <div class="control-group">
             <div>✏️ <strong>Brush Size</strong></div>
             <div class="control-row">
-                <input type="range" id="brushSize" min="0.5" max="10" step="0.5" value="2">
+                <input type="range" id="brushSize" min="0.25" max="200" step="0.25" value="2">
                 <span id="brushSizeValue">2px</span>
             </div>
+            <div class="control-row">
+                <label for="brushStyle">Style</label>
+                <select id="brushStyle">
+                    <option value="round">Round pen</option><option value="pencil">Pencil</option>
+                    <option value="marker">Marker</option><option value="calligraphy">Calligraphy</option>
+                    <option value="dashed">Dashed</option>
+                </select>
+            </div>
+            <div class="control-row"><label><input type="checkbox" id="pressureEnabled" checked> Pen pressure</label></div>
         </div>
         
         <div class="control-group">
@@ -212,54 +225,46 @@
     
     <div class="fps-counter" id="fpsCounter">FPS: 0</div>
     
+    <canvas id="glCanvas"></canvas>
     <canvas id="canvas"></canvas>
 
     <script>
-        // High-precision coordinate system using scaled integers
+        // Stable game-style chunked coordinates. A chunk keeps local values small,
+        // avoiding the old bitwise 32-bit overflow while preserving an effectively
+        // unbounded Number-based world.
         class PrecisionCoord {
-            constructor(x = 0, y = 0, scale = 0) {
-                this.x = Math.round(x * (1 << scale));
-                this.y = Math.round(y * (1 << scale));
-                this.scale = scale;
+            constructor(x = 0, y = 0) {
+                this.chunkSize = 1000000;
+                this.cx = Math.floor(x / this.chunkSize);
+                this.cy = Math.floor(y / this.chunkSize);
+                this.lx = x - this.cx * this.chunkSize;
+                this.ly = y - this.cy * this.chunkSize;
             }
             
             static fromFloat(x, y, targetScale = 20) {
-                return new PrecisionCoord(x, y, targetScale);
+                return new PrecisionCoord(x, y);
             }
             
             toFloat() {
                 return {
-                    x: this.x / (1 << this.scale),
-                    y: this.y / (1 << this.scale)
+                    x: this.cx * this.chunkSize + this.lx,
+                    y: this.cy * this.chunkSize + this.ly
                 };
             }
             
             add(other) {
-                const maxScale = Math.max(this.scale, other.scale);
-                const thisScaled = new PrecisionCoord(this.toFloat().x, this.toFloat().y, maxScale);
-                const otherScaled = new PrecisionCoord(other.toFloat().x, other.toFloat().y, maxScale);
-                
-                return new PrecisionCoord(
-                    (thisScaled.x + otherScaled.x) / (1 << maxScale),
-                    (thisScaled.y + otherScaled.y) / (1 << maxScale),
-                    maxScale
-                );
+                const a = this.toFloat(), b = other.toFloat();
+                return new PrecisionCoord(a.x + b.x, a.y + b.y);
             }
             
             subtract(other) {
-                const maxScale = Math.max(this.scale, other.scale);
-                const thisScaled = new PrecisionCoord(this.toFloat().x, this.toFloat().y, maxScale);
-                const otherScaled = new PrecisionCoord(other.toFloat().x, other.toFloat().y, maxScale);
-                
-                return new PrecisionCoord(
-                    (thisScaled.x - otherScaled.x) / (1 << maxScale),
-                    (thisScaled.y - otherScaled.y) / (1 << maxScale),
-                    maxScale
-                );
+                const a = this.toFloat(), b = other.toFloat();
+                return new PrecisionCoord(a.x - b.x, a.y - b.y);
             }
             
             multiply(scalar) {
-                return new PrecisionCoord(this.toFloat().x * scalar, this.toFloat().y * scalar, this.scale);
+                const a = this.toFloat();
+                return new PrecisionCoord(a.x * scalar, a.y * scalar);
             }
             
             distanceTo(other) {
@@ -281,6 +286,8 @@
                 this.camera = {
                     x: new PrecisionCoord(0, 0, 20),
                     zoom: 1,
+                    // No artificial application zoom limits. Finite-value guards
+                    // below protect the GPU from NaN/Infinity only.
                     minZoom: 1e-10,
                     maxZoom: 1e10
                 };
@@ -297,6 +304,8 @@
                 this.isDrawing = false;
                 this.isPanning = false;
                 this.brushSize = 2;
+                this.brushStyle = 'round';
+                this.pressureEnabled = true;
                 this.currentColor = '#ff6b6b';
                 this.useRandomColors = true;
                 this.eraserRadius = 10;
@@ -305,14 +314,21 @@
                 this.lastFrameTime = performance.now();
                 this.frameCount = 0;
                 this.fps = 0;
-                
-                // Auto-save system using session persistence
+                this.renderPending = false;
+                this.savePending = false;
+                this.saveInProgress = false;
+                this.saveTimer = null;
+                this.maxPointsPerStroke = 4000;
+                this.maxPersistedPoints = 150000;
+                // Durable browser persistence (IndexedDB supports much larger drawings than localStorage).
                 this.autoSaveEnabled = true;
                 this.lastSaveTime = 0;
-                this.saveInterval = 2000; // Save every 2 seconds
-                
+                this.saveInterval = 2000;
+                this.db = null;
+                this.dbReady = this.openDatabase();
+
                 this.setupEventListeners();
-                this.loadFromStorage(); // Load saved data
+                this.loadFromStorage();
                 this.saveState();
                 this.render();
                 this.startFPSCounter();
@@ -327,9 +343,10 @@
             }
             
             setupEventListeners() {
-                this.canvas.addEventListener('mousedown', (e) => this.onMouseDown(e));
-                this.canvas.addEventListener('mousemove', (e) => this.onMouseMove(e));
-                this.canvas.addEventListener('mouseup', (e) => this.onMouseUp(e));
+                this.canvas.addEventListener('pointerdown', (e) => this.onPointerDown(e));
+                this.canvas.addEventListener('pointermove', (e) => this.onPointerMove(e));
+                this.canvas.addEventListener('pointerup', (e) => this.onPointerUp(e));
+                this.canvas.addEventListener('pointercancel', (e) => this.onPointerUp(e));
                 this.canvas.addEventListener('wheel', (e) => this.onWheel(e));
                 this.canvas.addEventListener('contextmenu', (e) => e.preventDefault());
                 
@@ -357,6 +374,8 @@
                     this.brushSize = parseFloat(e.target.value);
                     document.getElementById('brushSizeValue').textContent = this.brushSize + 'px';
                 });
+                document.getElementById('brushStyle').addEventListener('change', (e) => { this.brushStyle = e.target.value; });
+                document.getElementById('pressureEnabled').addEventListener('change', (e) => { this.pressureEnabled = e.target.checked; });
                 
                 document.getElementById('colorPicker').addEventListener('change', (e) => {
                     this.currentColor = e.target.value;
@@ -410,7 +429,9 @@
                 };
             }
             
-            onMouseDown(e) {
+            onPointerDown(e) {
+                if (e.pointerType === 'mouse' && e.button !== 0 && e.button !== 2) return;
+                this.canvas.setPointerCapture(e.pointerId);
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
@@ -427,7 +448,8 @@
                         this.currentStroke = {
                             points: [worldPos],
                             width: this.brushSize / this.camera.zoom,
-                            color: color
+                            color: color, style: this.brushStyle || 'round',
+                            pressure: this.pressureEnabled !== false, pressures: [e.pressure || 0.5]
                         };
                     } else if (this.currentTool === 'erase') {
                         this.eraseAtPoint(this.screenToWorld(x, y));
@@ -441,14 +463,21 @@
                 }
             }
             
-            onMouseMove(e) {
+            onPointerMove(e) {
                 const rect = this.canvas.getBoundingClientRect();
                 const x = e.clientX - rect.left;
                 const y = e.clientY - rect.top;
                 
                 if (this.isDrawing && this.currentStroke && this.currentTool === 'draw') {
                     const worldPos = this.screenToWorld(x, y);
-                    this.currentStroke.points.push(worldPos);
+                    const previous = this.currentStroke.points[this.currentStroke.points.length - 1];
+                    // Do not retain sub-pixel jitter from high-report-rate pens.
+                    // This keeps long strokes bounded without visibly changing them.
+                    if ((!previous || previous.distanceTo(worldPos) * this.camera.zoom >= 0.9) &&
+                        this.currentStroke.points.length < this.maxPointsPerStroke) {
+                        this.currentStroke.points.push(worldPos);
+                        this.currentStroke.pressures.push(e.pressure || 0.5);
+                    }
                     this.render();
                 } else if (this.currentTool === 'erase' && e.buttons === 1) {
                     this.eraseAtPoint(this.screenToWorld(x, y));
@@ -469,12 +498,12 @@
                 this.updateInfo();
             }
             
-            onMouseUp(e) {
+            onPointerUp(e) {
                 if (this.isDrawing && this.currentStroke) {
                     this.strokes.push(this.currentStroke);
                     this.currentStroke = null;
                     this.saveState();
-                    this.saveToStorage(); // Auto-save after each stroke
+                    this.saveToStorage();
                 }
                 
                 this.isDrawing = false;
@@ -537,7 +566,7 @@
                 this.history.push(JSON.parse(JSON.stringify(this.strokes.map(stroke => ({
                     points: stroke.points.map(p => ({x: p.toFloat().x, y: p.toFloat().y})),
                     width: stroke.width,
-                    color: stroke.color
+                    color: stroke.color, style: stroke.style, pressure: stroke.pressure, pressures: stroke.pressures
                 })))));
                 
                 // Limit history size
@@ -569,7 +598,7 @@
                 this.strokes = state.map(stroke => ({
                     points: stroke.points.map(p => PrecisionCoord.fromFloat(p.x, p.y)),
                     width: stroke.width,
-                    color: stroke.color
+                    color: stroke.color, style: stroke.style || 'round', pressure: stroke.pressure, pressures: stroke.pressures
                 }));
                 this.render();
                 this.updateUndoRedoButtons();
@@ -581,6 +610,18 @@
             }
             
             render() {
+                // Pointer events can arrive much faster than the display refresh rate.
+                // Coalesce them into one paint per animation frame to avoid O(n²)
+                // redraw pressure while a long stroke is being created.
+                if (this.renderPending) return;
+                this.renderPending = true;
+                requestAnimationFrame(() => {
+                    this.renderPending = false;
+                    this.paint();
+                });
+            }
+
+            paint() {
                 this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
                 this.drawGrid();
                 
@@ -605,6 +646,14 @@
                 const endX = Math.ceil((cameraFloat.x + this.canvas.width / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
                 const startY = Math.floor((cameraFloat.y - this.canvas.height / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
                 const endY = Math.ceil((cameraFloat.y + this.canvas.height / (2 * this.camera.zoom)) / gridSpacing) * gridSpacing;
+                // A corrupted/very extreme view must never be allowed to create an
+                // unbounded line loop and lock the browser.
+                const columnCount = Math.ceil((endX - startX) / gridSpacing);
+                const rowCount = Math.ceil((endY - startY) / gridSpacing);
+                if (!Number.isFinite(columnCount) || !Number.isFinite(rowCount) || columnCount > 250 || rowCount > 250) {
+                    this.ctx.restore();
+                    return;
+                }
                 
                 for (let x = startX; x <= endX; x += gridSpacing) {
                     const worldStart = PrecisionCoord.fromFloat(x, startY);
@@ -643,6 +692,11 @@
                 
                 this.ctx.strokeStyle = stroke.color;
                 this.ctx.lineWidth = finalWidth;
+                this.ctx.lineCap = stroke.style === 'pencil' ? 'square' : 'round';
+                this.ctx.lineJoin = 'round';
+                this.ctx.globalAlpha = stroke.style === 'marker' ? 0.45 : 1;
+                if (stroke.style === 'dashed') this.ctx.setLineDash([finalWidth * 3, finalWidth * 2]);
+                if (stroke.style === 'calligraphy') this.ctx.lineWidth = finalWidth * 0.7;
                 this.ctx.beginPath();
                 
                 const firstPoint = this.worldToScreen(stroke.points[0]);
@@ -655,6 +709,18 @@
                 
                 this.ctx.stroke();
                 this.ctx.restore();
+            }
+
+            openDatabase() {
+                return new Promise((resolve, reject) => {
+                    // v2 intentionally uses a fresh store. The previous store may
+                    // contain a very large/corrupted drawing that can lock the tab
+                    // while it is deserialized during startup.
+                    const request = indexedDB.open('endless-paper-v2', 1);
+                    request.onupgradeneeded = () => request.result.createObjectStore('drawings');
+                    request.onsuccess = () => { this.db = request.result; resolve(this.db); };
+                    request.onerror = () => reject(request.error);
+                });
             }
             
             startAutoSave() {
@@ -676,13 +742,34 @@
                 });
             }
             
-            saveToStorage() {
+            saveToStorage(immediate = false) {
+                // Saving requires walking every point in the drawing. Debounce it so
+                // a burst of strokes does not repeatedly serialize the whole canvas.
+                if (this.saveTimer) clearTimeout(this.saveTimer);
+                if (!immediate) {
+                    this.saveTimer = setTimeout(() => {
+                        this.saveTimer = null;
+                        this.persistToStorage();
+                    }, 1500);
+                    return;
+                }
+                this.persistToStorage();
+            }
+
+            async persistToStorage() {
+                if (this.saveInProgress) { this.savePending = true; return; }
+                this.saveInProgress = true;
                 try {
+                    const pointCount = this.strokes.reduce((total, stroke) => total + stroke.points.length, 0);
+                    if (pointCount > this.maxPersistedPoints) {
+                        console.warn(`Autosave paused: drawing exceeds ${this.maxPersistedPoints} points. Export the drawing to save it manually.`);
+                        return;
+                    }
                     const data = {
                         strokes: this.strokes.map(stroke => ({
                             points: stroke.points.map(p => ({x: p.toFloat().x, y: p.toFloat().y})),
                             width: stroke.width,
-                            color: stroke.color
+                            color: stroke.color, style: stroke.style, pressure: stroke.pressure, pressures: stroke.pressures
                         })),
                         camera: {
                             x: this.camera.x.toFloat().x,
@@ -693,51 +780,57 @@
                             brushSize: this.brushSize,
                             currentColor: this.currentColor,
                             useRandomColors: this.useRandomColors,
-                            currentTool: this.currentTool
+                            currentTool: this.currentTool,
+                            brushStyle: this.brushStyle,
+                            pressureEnabled: this.pressureEnabled
                         },
                         timestamp: Date.now()
                     };
                     
-                    // Store in window object for session persistence
-                    if (!window.infiniteCanvasStorage) {
-                        window.infiniteCanvasStorage = {};
-                    }
-                    window.infiniteCanvasStorage.savedDrawing = JSON.stringify(data);
+                    const db = await this.dbReady;
+                    await new Promise((resolve, reject) => { const tx = db.transaction('drawings', 'readwrite'); tx.objectStore('drawings').put(data, 'current'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
                     this.lastSaveTime = Date.now();
                     
                     // Update info to show save status
                     this.showSaveStatus();
                 } catch (error) {
-                    console.error('Failed to save to storage:', error);
+                    console.error('Failed to save to IndexedDB:', error);
+                } finally {
+                    this.saveInProgress = false;
+                    if (this.savePending) { this.savePending = false; this.saveToStorage(); }
                 }
             }
             
-            loadFromStorage() {
+            async loadFromStorage() {
                 try {
-                    let savedData = null;
-                    
-                    // Try to load from window storage first (session persistence)
-                    if (window.infiniteCanvasStorage && window.infiniteCanvasStorage.savedDrawing) {
-                        savedData = JSON.parse(window.infiniteCanvasStorage.savedDrawing);
-                    }
+                    const db = await this.dbReady;
+                    const savedData = await new Promise((resolve, reject) => { const tx = db.transaction('drawings', 'readonly'); const req = tx.objectStore('drawings').get('current'); req.onsuccess = () => resolve(req.result); req.onerror = () => reject(req.error); });
                     
                     if (savedData && savedData.strokes) {
+                        const savedPointCount = savedData.strokes.reduce((total, stroke) => total + (stroke.points ? stroke.points.length : 0), 0);
+                        if (savedPointCount > 500000 || savedData.strokes.length > 100000) {
+                            console.warn('Saved drawing skipped because it is too large to load safely.');
+                            return;
+                        }
                         // Load strokes
                         this.strokes = savedData.strokes.map(stroke => ({
                             points: stroke.points.map(p => PrecisionCoord.fromFloat(p.x, p.y)),
                             width: stroke.width,
-                            color: stroke.color
+                            color: stroke.color, style: stroke.style || 'round', pressure: stroke.pressure, pressures: stroke.pressures
                         }));
                         
                         // Load camera position
                         if (savedData.camera) {
                             this.camera.x = PrecisionCoord.fromFloat(savedData.camera.x, savedData.camera.y);
-                            this.camera.zoom = savedData.camera.zoom;
+                            this.camera.zoom = Number.isFinite(savedData.camera.zoom)
+                                ? Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, savedData.camera.zoom))
+                                : 1;
                         }
                         
                         // Load settings
                         if (savedData.settings) {
                             this.brushSize = savedData.settings.brushSize || 2;
+                            this.brushStyle = savedData.settings.brushStyle || 'round';
                             this.currentColor = savedData.settings.currentColor || '#ff6b6b';
                             this.useRandomColors = savedData.settings.useRandomColors !== undefined ? 
                                                  savedData.settings.useRandomColors : true;
@@ -747,6 +840,7 @@
                             setTimeout(() => {
                                 document.getElementById('brushSize').value = this.brushSize;
                                 document.getElementById('brushSizeValue').textContent = this.brushSize + 'px';
+                                document.getElementById('brushStyle').value = this.brushStyle;
                                 document.getElementById('colorPicker').value = this.currentColor;
                                 this.setTool(this.currentTool);
                                 this.updateRandomColorButton();
@@ -873,7 +967,9 @@
                         
                         if (data.camera) {
                             this.camera.x = PrecisionCoord.fromFloat(data.camera.x, data.camera.y);
-                            this.camera.zoom = data.camera.zoom;
+                            this.camera.zoom = Number.isFinite(data.camera.zoom)
+                                ? Math.max(this.camera.minZoom, Math.min(this.camera.maxZoom, data.camera.zoom))
+                                : 1;
                         }
                         
                         this.saveState();
@@ -1162,6 +1258,15 @@
         
         function redo() {
             canvas.redo();
+        }
+
+        async function clearStorage() {
+            if (!confirm('Delete the saved drawing from this browser?')) return;
+            try {
+                const db = await canvas.dbReady;
+                await new Promise((resolve, reject) => { const tx = db.transaction('drawings', 'readwrite'); tx.objectStore('drawings').delete('current'); tx.oncomplete = resolve; tx.onerror = () => reject(tx.error); });
+                canvas.strokes = []; canvas.saveState(); canvas.render(); canvas.updateInfo();
+            } catch (error) { console.error('Failed to clear IndexedDB:', error); }
         }
         
         function goBack() {

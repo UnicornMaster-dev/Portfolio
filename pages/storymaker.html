@@ -252,6 +252,9 @@
         .gemini-window { max-height: 90vh; }
         #text-transfer-modal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:24px; }
         #text-transfer-modal.open { display:flex; }
+        #settings-modal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:24px; }
+        #settings-modal.open { display:flex; }
+        .simple-window { width:min(420px, 96vw); background:#222; border:1px solid #555; border-radius:8px; padding:18px; }
         .transfer-window { width:min(760px,96vw); }
         .transfer-area { min-height:360px; width:100%; font-family:monospace; font-size:12px; }
         .documentation-window {
@@ -387,6 +390,7 @@
         <button class="toolbar-btn" onclick="exportStory()">Export HTML</button>
         <button class="toolbar-btn secondary" onclick="previewStory()">Preview</button>
         <button class="toolbar-btn" onclick="openDocumentation()">Documentation</button>
+        <button class="toolbar-btn" onclick="openSettings()">Settings</button>
         <button class="toolbar-btn" onclick="saveProject()">Save JSON</button>
         <button class="toolbar-btn" onclick="loadProject()">Load JSON</button>
         <button class="toolbar-btn" onclick="openTextTransfer('export')">Export Text</button>
@@ -425,6 +429,15 @@
         <button class="quick-menu-item" id="copy-node-action" onclick="copySelectedNodes()">Copy node</button>
         <button class="quick-menu-item" id="paste-node-action" onclick="pasteCopiedNodes()">Paste node</button>
         <button class="quick-menu-item" onclick="deleteSelectedNodes()">Delete node</button>
+    </div>
+    <div id="settings-modal" class="simple-modal" role="dialog" aria-modal="true">
+        <div class="simple-window">
+            <div class="preview-header"><strong>Settings</strong><button class="btn-small" onclick="closeSettings()">Close</button></div>
+            <label class="property-label" style="display:block;margin:18px 0 8px;">
+                <input type="checkbox" id="auto-connect-setting"> Auto-connect nearby ports while dragging
+            </label>
+            <p style="color:#aaa;font-size:12px;">When enabled, releasing near a compatible port creates the connection.</p>
+        </div>
     </div>
     <div id="selection-box"></div>
     <div id="documentation-modal" role="dialog" aria-modal="true" aria-label="Story maker documentation">
@@ -509,6 +522,9 @@
         let isConnecting = false;
         let connectionStart = null;
         let tempLine = null;
+        let snappedConnectionPort = null;
+        let autoConnectEnabled = false;
+        const autoConnectRadius = 28;
 
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvas-container');
@@ -1182,6 +1198,7 @@
 
             isConnecting = true;
             connectionStart = { nodeId, portType, portIndex, element: port };
+            snappedConnectionPort = null;
 
             // Create temporary line
             tempLine = document.createElementNS('http://www.w3.org/2000/svg', 'line');
@@ -1208,8 +1225,10 @@
             const x1 = screenToCanvasX(rect.left + rect.width / 2);
             const y1 = screenToCanvasY(rect.top + rect.height / 2);
 
-            const x2 = screenToCanvasX(e.clientX);
-            const y2 = screenToCanvasY(e.clientY);
+            snappedConnectionPort = autoConnectEnabled ? findNearbyConnectionPort(e.clientX, e.clientY) : null;
+            const targetRect = snappedConnectionPort ? snappedConnectionPort.getBoundingClientRect() : null;
+            const x2 = screenToCanvasX(targetRect ? targetRect.left + targetRect.width / 2 : e.clientX);
+            const y2 = screenToCanvasY(targetRect ? targetRect.top + targetRect.height / 2 : e.clientY);
 
             tempLine.setAttribute('x1', x1);
             tempLine.setAttribute('y1', y1);
@@ -1222,8 +1241,9 @@
 
             e.stopPropagation();
 
-            const port = e.target;
-            if (!port.classList.contains('node-port')) {
+            const port = e.target.classList && e.target.classList.contains('node-port')
+                ? e.target : snappedConnectionPort;
+            if (!port || !port.classList.contains('node-port')) {
                 cancelConnection();
                 return;
             }
@@ -1265,7 +1285,12 @@
                 c.toNode === toNode
             );
 
-            if (!exists) {
+            // Each output port may lead to only one node.
+            const outputAlreadyConnected = connections.some(c =>
+                c.fromNode === fromNode && c.fromPort === fromPort
+            );
+
+            if (!exists && !outputAlreadyConnected) {
                 connections.push({
                     id: nextConnectionId++,
                     fromNode,
@@ -1282,6 +1307,7 @@
         function cancelConnection() {
             isConnecting = false;
             connectionStart = null;
+            snappedConnectionPort = null;
             if (tempLine) {
                 tempLine.remove();
                 tempLine = null;
@@ -1289,10 +1315,24 @@
         }
 
         document.addEventListener('mouseup', (e) => {
-            if (isConnecting && !e.target.classList.contains('node-port')) {
-                cancelConnection();
-            }
+            if (isConnecting) endConnection(e);
         });
+
+        function findNearbyConnectionPort(clientX, clientY) {
+            const wantedType = connectionStart?.portType === 'output' ? 'input' : 'output';
+            let nearest = null;
+            let nearestDistance = autoConnectRadius;
+            document.querySelectorAll(`.node-port.${wantedType}`).forEach((port) => {
+                if (String(port.dataset.nodeId) === String(connectionStart.nodeId)) return;
+                const rect = port.getBoundingClientRect();
+                const distance = Math.hypot(clientX - (rect.left + rect.width / 2), clientY - (rect.top + rect.height / 2));
+                if (distance <= nearestDistance) {
+                    nearest = port;
+                    nearestDistance = distance;
+                }
+            });
+            return nearest;
+        }
 
         function redrawConnections() {
             // Clear existing connections
@@ -1424,6 +1464,17 @@
 
         function closeDocumentation() {
             document.getElementById('documentation-modal').classList.remove('open');
+        }
+
+        function openSettings() {
+            const checkbox = document.getElementById('auto-connect-setting');
+            checkbox.checked = autoConnectEnabled;
+            checkbox.onchange = () => { autoConnectEnabled = checkbox.checked; };
+            document.getElementById('settings-modal').classList.add('open');
+        }
+
+        function closeSettings() {
+            document.getElementById('settings-modal').classList.remove('open');
         }
 
         function openGeminiGenerator() {
@@ -1582,11 +1633,15 @@
         document.getElementById('text-transfer-modal').addEventListener('click', (event) => {
             if (event.target.id === 'text-transfer-modal') closeTextTransfer();
         });
+        document.getElementById('settings-modal').addEventListener('click', (event) => {
+            if (event.target.id === 'settings-modal') closeSettings();
+        });
         document.addEventListener('keydown', (event) => {
             if (event.key === 'Escape') closePreview();
             if (event.key === 'Escape') closeDocumentation();
             if (event.key === 'Escape') closeGeminiGenerator();
             if (event.key === 'Escape') closeTextTransfer();
+            if (event.key === 'Escape') closeSettings();
         });
 
         // Properties panel
