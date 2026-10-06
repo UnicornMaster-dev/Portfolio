@@ -254,7 +254,11 @@
         #text-transfer-modal.open { display:flex; }
         #settings-modal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:24px; }
         #settings-modal.open { display:flex; }
-        .simple-window { width:min(420px, 96vw); background:#222; border:1px solid #555; border-radius:8px; padding:18px; }
+        .simple-window { width:min(420px, 96vw); max-height:90vh; overflow-y:auto; background:#222; border:1px solid #555; border-radius:8px; padding:18px; }
+        .settings-section { border-top:1px solid #444; margin-top:18px; padding-top:14px; }
+        .settings-section h4 { color:#4db8ff; margin-bottom:12px; }
+        .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .property-checkbox { display:flex; gap:8px; align-items:center; color:#ddd; font-size:13px; margin:8px 0; }
         .transfer-window { width:min(760px,96vw); }
         .transfer-area { min-height:360px; width:100%; font-family:monospace; font-size:12px; }
         .documentation-window {
@@ -437,6 +441,30 @@
                 <input type="checkbox" id="auto-connect-setting"> Auto-connect nearby ports while dragging
             </label>
             <p style="color:#aaa;font-size:12px;">When enabled, releasing near a compatible port creates the connection.</p>
+            <div class="settings-section">
+                <h4>Story text</h4>
+                <label class="property-checkbox"><input type="checkbox" id="text-features-setting"> Enable text fonts, styling, and reveal animations</label>
+                <div class="settings-grid">
+                    <div><label class="property-label">Default wait time (ms)</label><input class="property-input" id="default-wait-setting" type="number" min="50" max="5000" step="50"></div>
+                    <div><label class="property-label">Default reveal style</label><select class="property-input" id="default-animation-setting"><option value="instant">Instant (current)</option><option value="character">Character by character</option><option value="word">Word by word</option><option value="fade-word">Fade in words</option></select></div>
+                </div>
+                <div class="settings-grid" style="margin-top:12px">
+                    <div><label class="property-label">Character/word interval (ms)</label><input class="property-input" id="reveal-interval-setting" type="number" min="10" max="2000" step="10"></div>
+                </div>
+                <label class="property-label" style="margin-top:12px">Default text content</label>
+                <textarea class="property-input property-textarea" id="default-text-setting" placeholder="Enter your text here..."></textarea>
+                <label class="property-label" style="margin-top:12px">Default question text</label>
+                <textarea class="property-input property-textarea" id="default-question-setting" placeholder="Question text"></textarea>
+                <label class="property-label" style="margin-top:12px">Default button label</label>
+                <input class="property-input" id="default-button-setting" placeholder="Choice">
+                <label class="property-label" style="margin-top:12px">Default input prompt</label>
+                <input class="property-input" id="default-prompt-setting" placeholder="Enter your response:">
+            </div>
+            <div class="settings-section">
+                <h4>Advanced defaults</h4>
+                <label class="property-checkbox"><input type="checkbox" id="advanced-setting"> Enable advanced text controls in node properties</label>
+                <p style="color:#aaa;font-size:12px;">When enabled, text nodes expose color, size, alignment, weight, spacing, and per-node reveal controls.</p>
+            </div>
         </div>
     </div>
     <div id="selection-box"></div>
@@ -525,6 +553,7 @@
         let snappedConnectionPort = null;
         let autoConnectEnabled = false;
         const autoConnectRadius = 28;
+        const storySettings = Object.assign({ enabled: true, defaultWait: 1000, animation: 'instant', interval: 45, buttonLabel: 'Choice', inputPrompt: 'Enter your response:', defaultText: 'Enter your text here...', defaultQuestion: 'Question text', advanced: true }, JSON.parse(localStorage.getItem('storyMakerSettings') || '{}'));
 
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvas-container');
@@ -601,13 +630,13 @@
                 case 'start':
                     return { label: 'Start' };
                 case 'text':
-                    return { text: 'Enter your text here...' };
+                    return { text: storySettings.defaultText, style: {}, animation: storySettings.animation };
                 case 'button':
                     return {
-                        text: 'Question text',
+                        text: storySettings.defaultQuestion,
                         choices: [
-                            { label: 'Choice 1', text: '' },
-                            { label: 'Choice 2', text: '' }
+                            { label: storySettings.buttonLabel + ' 1', text: '' },
+                            { label: storySettings.buttonLabel + ' 2', text: '' }
                         ],
                         variable: 'var_' + Date.now()
                     };
@@ -625,7 +654,7 @@
                     };
                 case 'input':
                     return {
-                        prompt: 'Enter your response:',
+                        prompt: storySettings.inputPrompt,
                         variable: 'userInput'
                     };
                 case 'logic':
@@ -1448,7 +1477,13 @@
                 alert('You need a Start node to preview the story!');
                 return;
             }
-            document.getElementById('preview-frame').srcdoc = generateStoryHTML();
+            try {
+                document.getElementById('preview-frame').srcdoc = generateStoryHTML();
+            } catch (error) {
+                console.error('Preview generation failed:', error);
+                alert('Preview could not be generated: ' + error.message);
+                return;
+            }
             document.getElementById('preview-modal').classList.add('open');
         }
 
@@ -1470,6 +1505,28 @@
             const checkbox = document.getElementById('auto-connect-setting');
             checkbox.checked = autoConnectEnabled;
             checkbox.onchange = () => { autoConnectEnabled = checkbox.checked; };
+            document.getElementById('text-features-setting').checked = storySettings.enabled;
+            document.getElementById('default-wait-setting').value = storySettings.defaultWait;
+            document.getElementById('default-animation-setting').value = storySettings.animation;
+            document.getElementById('reveal-interval-setting').value = storySettings.interval;
+            document.getElementById('default-text-setting').value = storySettings.defaultText;
+            document.getElementById('default-question-setting').value = storySettings.defaultQuestion;
+            document.getElementById('default-button-setting').value = storySettings.buttonLabel;
+            document.getElementById('default-prompt-setting').value = storySettings.inputPrompt;
+            document.getElementById('advanced-setting').checked = storySettings.advanced;
+            const save = () => {
+                storySettings.enabled = document.getElementById('text-features-setting').checked;
+                storySettings.defaultWait = Math.min(5000000000000, Math.max(0, Number(document.getElementById('default-wait-setting').value) || 1000));
+                storySettings.animation = document.getElementById('default-animation-setting').value;
+                storySettings.interval = Math.min(2000, Math.max(10, Number(document.getElementById('reveal-interval-setting').value) || 45));
+                storySettings.defaultText = document.getElementById('default-text-setting').value || 'Enter your text here...';
+                storySettings.defaultQuestion = document.getElementById('default-question-setting').value || 'Question text';
+                storySettings.buttonLabel = document.getElementById('default-button-setting').value || 'Choice';
+                storySettings.inputPrompt = document.getElementById('default-prompt-setting').value || 'Enter your response:';
+                storySettings.advanced = document.getElementById('advanced-setting').checked;
+                localStorage.setItem('storyMakerSettings', JSON.stringify(storySettings));
+            };
+            ['text-features-setting','default-wait-setting','default-animation-setting','reveal-interval-setting','default-text-setting','default-question-setting','default-button-setting','default-prompt-setting','advanced-setting'].forEach(id => document.getElementById(id).onchange = save);
             document.getElementById('settings-modal').classList.add('open');
         }
 
@@ -1487,6 +1544,14 @@
         }
 
         let textTransferMode = 'export';
+        function getProjectData() {
+            return { nodes, connections, nextNodeId, nextConnectionId, settings: { ...storySettings }, autoConnectEnabled };
+        }
+        function restoreProjectSettings(project) {
+            if (project.settings) Object.assign(storySettings, project.settings);
+            if (typeof project.autoConnectEnabled === 'boolean') autoConnectEnabled = project.autoConnectEnabled;
+            localStorage.setItem('storyMakerSettings', JSON.stringify(storySettings));
+        }
         function openTextTransfer(mode) {
             textTransferMode = mode;
             const isExport = mode === 'export' || mode === 'export-html';
@@ -1499,7 +1564,7 @@
             title.textContent = isHtmlExport ? 'Export Final HTML Story' : isExport ? 'Export Project as Text' : 'Import Project from Text';
             help.textContent = isHtmlExport ? 'Copy this complete HTML story and paste it into another editor, Trinket, or an HTML file.' : isExport ? 'Copy this JSON text and paste it into another editor session.' : 'Paste exported project JSON here, then click Import Project.';
             action.textContent = isExport ? 'Copy to Clipboard' : 'Import Project';
-            area.value = isHtmlExport ? generateStoryHTML() : isExport ? JSON.stringify({ nodes, connections, nextNodeId, nextConnectionId }, null, 2) : '';
+            area.value = isHtmlExport ? generateStoryHTML() : isExport ? JSON.stringify(getProjectData(), null, 2) : '';
             document.getElementById('text-transfer-modal').classList.add('open');
             setTimeout(() => area.focus(), 0);
         }
@@ -1517,6 +1582,7 @@
                 if (!Array.isArray(project.nodes) || !Array.isArray(project.connections)) throw new Error('Text is not a valid story project.');
                 pushUndoState();
                 nodes = project.nodes; connections = project.connections;
+                restoreProjectSettings(project);
                 nextNodeId = project.nextNodeId || Math.max(0, ...nodes.map(node => Number(node.id) || 0)) + 1;
                 nextConnectionId = project.nextConnectionId || Math.max(0, ...connections.map(connection => Number(connection.id) || 0)) + 1;
                 canvas.querySelectorAll('.node').forEach(node => node.remove());
@@ -1700,6 +1766,8 @@
             waitGroup.appendChild(waitInput);
             content.appendChild(waitGroup);
 
+            if (storySettings.advanced && (node.type === 'text' || node.type === 'button' || node.type === 'input')) showTextStyleProperties(node, content);
+
             // Add delete button
             const deleteBtn = document.createElement('button');
             deleteBtn.className = 'btn-small btn-remove';
@@ -1734,6 +1802,23 @@
             group.appendChild(textarea);
 
             container.appendChild(group);
+        }
+
+        function showTextStyleProperties(node, container) {
+            node.data.style = node.data.style || {};
+            const group = document.createElement('div'); group.className = 'property-group';
+            group.innerHTML = '<label class="property-label">Text styling</label><div class="settings-grid"><select class="property-input"><option value="system">System UI</option><option value="serif">Serif</option><option value="sans-serif">Sans-serif</option><option value="monospace">Monospace</option><option value="custom">Web font</option></select><input class="property-input" type="color" title="Color" value="' + (node.data.style.color || '#222222') + '"><input class="property-input" type="number" min="10" max="72" placeholder="Size (px)" value="' + (node.data.style.fontSize || '') + '"><select class="property-input"><option value="">Weight</option><option>400</option><option>600</option><option>700</option></select><select class="property-input"><option value="">Align</option><option>left</option><option>center</option><option>right</option></select></div><input class="property-input" style="margin-top:8px" placeholder="Web font CSS URL (optional)" value="' + (node.data.style.webFontUrl || '') + '"><select class="property-input" style="margin-top:8px"><option value="instant">Instant</option><option value="character">Character by character</option><option value="word">Word by word</option><option value="fade-word">Fade in words</option></select><label class="property-label" style="margin-top:8px">Animation speed (ms per character/word)</label><input class="property-input" type="number" min="10" max="2000" step="10" value="' + (node.data.interval || storySettings.interval || 45) + '">';
+            const inputs = group.querySelectorAll('input,select');
+            inputs[0].value = node.data.style.font || 'system';
+            inputs[3].value = node.data.style.fontWeight || '';
+            inputs[4].value = node.data.style.textAlign || '';
+            inputs[6].value = node.data.animation || storySettings.animation || 'instant';
+            const speedLabel = group.querySelectorAll('label')[1];
+            const speedInput = inputs[7];
+            const updateSpeedVisibility = () => { const animated = inputs[6].value !== 'instant'; speedLabel.style.display = animated ? 'block' : 'none'; speedInput.style.display = animated ? 'block' : 'none'; };
+            updateSpeedVisibility();
+            const update = () => { node.data.style.font=inputs[0].value; node.data.style.color=inputs[1].value; node.data.style.fontSize=inputs[2].value; node.data.style.fontWeight=inputs[3].value; node.data.style.textAlign=inputs[4].value; node.data.style.webFontUrl=inputs[5].value; node.data.animation=inputs[6].value; node.data.interval=Math.min(2000, Math.max(10, Number(inputs[7].value) || storySettings.interval || 45)); updateSpeedVisibility(); updateNodeDisplay(node); };
+            inputs.forEach(input => input.onchange = update); container.appendChild(group);
         }
 
         function showButtonProperties(node, container) {
@@ -2204,6 +2289,8 @@
         function generateStoryHTML() {
             const nodesJSON = JSON.stringify(nodes);
             const connectionsJSON = JSON.stringify(connections);
+            const settingsJSON = JSON.stringify(storySettings);
+            const webFontImports = [...new Set(nodes.map(node => node.data && node.data.style && node.data.style.webFontUrl).filter(Boolean))].map(url => `@import url("${url.replace(/"/g, '')}");`).join('');
 
             return `<!DOCTYPE html>
 <html lang="en">
@@ -2227,6 +2314,7 @@
             align-items: center;
             padding: 20px;
         }
+        ${webFontImports}
         
         #chat-container {
             max-width: 600px;
@@ -2273,6 +2361,11 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.1);
             margin-bottom: 10px;
         }
+        .reveal-word { display:inline-block; opacity:0; animation: revealWord .35s ease forwards; }
+        .reveal-sequence { white-space:normal; }
+        .reveal-character-word { display:inline-block; white-space:nowrap; }
+        .reveal-sequence > span { max-width:100%; }
+        @keyframes revealWord { to { opacity:1; } }
         
         .message img {
             max-width: 100%;
@@ -2345,6 +2438,7 @@
     <script>
         const nodes = ${nodesJSON};
         const connections = ${connectionsJSON};
+        const storySettings = ${settingsJSON};
         const variables = {};
         let currentNodeId = null;
         
@@ -2358,11 +2452,40 @@
 
         function nodeWait(node, fallback) {
             const value = Number(node && node.data && node.data.wait);
-            return Number.isFinite(value) ? Math.min(5000, Math.max(50, value)) : fallback;
+            return Number.isFinite(value) ? Math.min(5000, Math.max(50, value)) : (storySettings.defaultWait || fallback);
+        }
+
+        function textStyle(node) {
+            if (!storySettings.enabled) return '';
+            const s = node.data && node.data.style || {};
+            const customFont = (s.webFontUrl && s.webFontUrl.match(/family=([^&]+)/) || [,''])[1].replace(/\\+/g, ' ').split(':')[0];
+            const font = s.font === 'custom' ? (customFont ? "'" + customFont + "'" : 'system-ui') : (s.font === 'system' || !s.font ? 'system-ui' : s.font);
+            return ' style="font-family:' + font + ';' + (s.color ? 'color:' + s.color + ';' : '') + (s.fontSize ? 'font-size:' + Number(s.fontSize) + 'px;' : '') + (s.fontWeight ? 'font-weight:' + s.fontWeight + ';' : '') + (s.textAlign ? 'text-align:' + s.textAlign + ';' : '') + '"';
+        }
+        function revealText(text, node) {
+            const rawValue = interpolate(text);
+            const value = escapeHtml(rawValue);
+            if (!storySettings.enabled || !node.data.animation || node.data.animation === 'instant') return value;
+            const mode = node.data.animation;
+            const parts = rawValue.split(/(\\s+)/);
+            const interval = node.data.interval || storySettings.interval || 45;
+            if (mode === 'character') {
+                let characterIndex = 0;
+                return '<span class="reveal-sequence">' + parts.map(part => {
+                    if (/^\\s+$/.test(part)) return escapeHtml(part);
+                    const word = '<span class="reveal-character-word">' + Array.from(part).map(character => '<span style="opacity:0;display:inline-block;animation:revealWord .01s forwards;animation-delay:' + (characterIndex++ * interval) + 'ms">' + escapeHtml(character) + '</span>').join('') + '</span>';
+                    return word;
+                }).join('') + '</span>';
+            }
+            if (mode === 'fade-word') return parts.map((part, i) => /\\s+/.test(part) ? escapeHtml(part) : '<span class="reveal-word" style="animation-delay:' + (i * interval) + 'ms">' + escapeHtml(part) + '</span>').join('');
+            return '<span class="reveal-sequence">' + parts.map((part, i) => {
+                if (/^\\s+$/.test(part)) return escapeHtml(part);
+                return '<span style="opacity:0;display:inline-block;animation:revealWord .01s forwards;animation-delay:' + (i * interval) + 'ms">' + escapeHtml(part) + '</span>';
+            }).join('') + '</span>';
         }
 
         function interpolate(text) {
-            return String(text || '').replace(/\{([^{}]+)\}/g, (match, rawName) => {
+            return String(text || '').replace(/\\{([^{}]+)\\}/g, (match, rawName) => {
                 const name = rawName.trim();
                 const value = getVar(name);
                 return value === undefined || value === null ? match : String(value);
@@ -2428,7 +2551,7 @@
         }
         
         function handleText(node) {
-            addMessage('<div class="message-content">' + escapeHtml(interpolate(node.data.text)) + '</div>');
+            addMessage('<div class="message-content"' + textStyle(node) + '>' + revealText(node.data.text, node) + '</div>');
             const nextNode = getNextNode(node.id);
             if (nextNode) {
                 setTimeout(() => goToNode(nextNode), nodeWait(node, 1000));
@@ -2436,7 +2559,7 @@
         }
         
         function handleButton(node) {
-            let content = '<div class="message-content">' + escapeHtml(interpolate(node.data.text)) + '</div>';
+            let content = '<div class="message-content"' + textStyle(node) + '>' + revealText(node.data.text, node) + '</div>';
             content += '<div class="choices">';
             
             node.data.choices.forEach((choice, index) => {
@@ -2530,7 +2653,7 @@
         }
         
         function handleInput(node) {
-            let content = '<div class="message-content">' + escapeHtml(node.data.prompt) + '</div>';
+            let content = '<div class="message-content"' + textStyle(node) + '>' + revealText(node.data.prompt, node) + '</div>';
             content += '<div class="message-content">';
             content += '<div class="input-container">';
             content += '<input type="text" class="user-input" id="input-' + node.id + '" placeholder="Type your answer...">';
@@ -2615,12 +2738,7 @@ ${'<' + '/html>'}`;
 
         // Save/Load project
         function saveProject() {
-            const project = {
-                nodes: nodes,
-                connections: connections,
-                nextNodeId: nextNodeId,
-                nextConnectionId: nextConnectionId
-            };
+            const project = getProjectData();
 
             const json = JSON.stringify(project, null, 2);
             const blob = new Blob([json], { type: 'application/json' });
@@ -2655,6 +2773,7 @@ ${'<' + '/html>'}`;
                         connections = project.connections;
                         nextNodeId = project.nextNodeId || nextNodeId;
                         nextConnectionId = project.nextConnectionId || nextConnectionId;
+                        restoreProjectSettings(project);
 
                         // Render nodes
                         nodes.forEach(node => renderNode(node));
@@ -2674,12 +2793,7 @@ ${'<' + '/html>'}`;
 
         // Auto-save to cookie every 5 seconds
         function saveToLocal() {
-            const project = {
-                nodes: nodes,
-                connections: connections,
-                nextNodeId: nextNodeId,
-                nextConnectionId: nextConnectionId
-            };
+            const project = getProjectData();
             localStorage.setItem('storyMakerProject', JSON.stringify(project));
         }
 
@@ -2692,6 +2806,7 @@ ${'<' + '/html>'}`;
                     connections = project.connections;
                     nextNodeId = project.nextNodeId || nextNodeId;
                     nextConnectionId = project.nextConnectionId || nextConnectionId;
+                    restoreProjectSettings(project);
                     nodes.forEach(node => renderNode(node));
                     redrawConnections();
                     return true;
