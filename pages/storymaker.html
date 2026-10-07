@@ -621,6 +621,7 @@
         let isPanning = false;
         let lastMouseX = 0;
         let lastMouseY = 0;
+        let zoomTransformQueued = false;
 
         // Connection state
         let isConnecting = false;
@@ -684,6 +685,7 @@
 
         // Initialize
         updateCanvasTransform();
+        updateSvgSize();
 
         // Node creation with drag-to-place
         let pendingNodeType = null;
@@ -1024,11 +1026,12 @@
                     item.node.x = snapCanvasValue(item.x + dx);
                     item.node.y = snapCanvasValue(item.y + dy);
                     const nodeEl = document.getElementById(`node-${item.node.id}`);
-                    nodeEl.style.left = item.node.x + 'px';
-                    nodeEl.style.top = item.node.y + 'px';
+                    // Keep layout coordinates stable during the drag. A
+                    // transform is considerably cheaper than changing left
+                    // and top on every mouse event.
+                    nodeEl.style.transform = `translate(${item.node.x - item.x}px, ${item.node.y - item.y}px)`;
                 });
 
-                scheduleRedrawConnections();
             } else if (isConnecting && tempLine) {
                 updateTempLine(e);
             } else if (isPlacingNode && ghostNode) {
@@ -1037,9 +1040,23 @@
         });
 
         document.addEventListener('mouseup', () => {
+            const wasDraggingNode = !!draggedNode && nodeWasDragged;
+            const movedItems = dragStartPositions;
             draggedNode = null;
             dragStartPositions = null;
-            if (nodeWasDragged) setTimeout(() => { nodeWasDragged = false; }, 0);
+            if (wasDraggingNode) {
+                // Rebuild connection geometry once after the node positions
+                // settle instead of doing it for every drag event.
+                redrawConnections();
+                movedItems?.forEach(item => {
+                    const nodeEl = document.getElementById(`node-${item.node.id}`);
+                    if (!nodeEl) return;
+                    nodeEl.style.left = item.node.x + 'px';
+                    nodeEl.style.top = item.node.y + 'px';
+                    nodeEl.style.transform = '';
+                });
+                setTimeout(() => { nodeWasDragged = false; }, 0);
+            }
         });
 
         // Node selection
@@ -1222,7 +1239,6 @@
         // Canvas transform
         function updateCanvasTransform() {
             canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
-            updateSvgSize();
         }
 
         // Panning changes the position of the whole canvas, so its SVG
@@ -1243,13 +1259,11 @@
         function zoomIn() {
             scale = Math.min(scale * 1.2, 3);
             updateCanvasTransform();
-            redrawConnections();
         }
 
         function zoomOut() {
             scale = Math.max(scale / 1.2, 0.1);
             updateCanvasTransform();
-            redrawConnections();
         }
 
         function resetZoom() {
@@ -1257,7 +1271,6 @@
             panX = 0;
             panY = 0;
             updateCanvasTransform();
-            redrawConnections();
         }
 
         // Pan controls
@@ -1377,8 +1390,16 @@
                 panX = mouseX - worldX * scale;
                 panY = mouseY - worldY * scale;
 
-                updateCanvasTransform();
-                redrawConnections();
+                // Wheel events can arrive much faster than the display can
+                // paint. The canvas transform is enough here: connections
+                // live inside the canvas and scale with it automatically.
+                if (!zoomTransformQueued) {
+                    zoomTransformQueued = true;
+                    requestAnimationFrame(() => {
+                        zoomTransformQueued = false;
+                        updateCanvasTransform();
+                    });
+                }
             }
         });
 
