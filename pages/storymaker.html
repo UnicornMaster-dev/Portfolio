@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+<!--suppress CssUnusedSymbol, HtmlFormInputWithoutLabel -->
 <html lang="en">
 
 <head>
@@ -105,6 +106,9 @@
             border-color: #ffa500;
             box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
         }
+        .node.unconnected-output { border-color:#ff5b5b; box-shadow:0 0 0 2px rgba(255,91,91,.35); }
+        .node.find-hit { border-color:#ffe066; box-shadow:0 0 0 3px rgba(255,224,102,.55); }
+        .node-content mark.find-match { background:#ffe066; color:#111; border-radius:2px; }
 
         .node-header {
             font-weight: bold;
@@ -403,6 +407,13 @@
         <button class="toolbar-btn" onclick="clearCanvas()">Clear Canvas</button>
         <button class="toolbar-btn secondary" onclick="openGeminiGenerator()">Generate with Gemini</button>
     </div>
+    <div id="find-bar" style="display:none;position:fixed;top:68px;right:18px;z-index:1200;background:#2d2d2d;border:1px solid #555;padding:10px;border-radius:5px;width:320px;box-shadow:0 5px 18px #0008">
+        <input id="find-input" class="property-input" placeholder="Find text">
+        <input id="replace-input" class="property-input" style="margin-top:6px;display:none" placeholder="Replace with">
+        <label class="property-checkbox" style="margin:6px 0"><input type="checkbox" id="find-case-setting"> Case sensitive</label>
+        <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px"><button class="btn-small" onclick="findNext(1)">Next</button><button class="btn-small" onclick="findNext(-1)">Previous</button><button class="btn-small" id="replace-one-btn" onclick="replaceCurrent()" style="display:none">Replace</button><button class="btn-small" id="replace-all-btn" onclick="replaceAllText()" style="display:none">Replace all</button><button class="btn-small" onclick="closeFindBar()">Close</button></div>
+        <span id="find-status" style="color:#aaa;font-size:11px"></span>
+    </div>
 
     <div id="canvas-container">
         <div id="canvas">
@@ -442,6 +453,12 @@
             </label>
             <p style="color:#aaa;font-size:12px;">When enabled, releasing near a compatible port creates the connection.</p>
             <div class="settings-section">
+                <h4>Canvas</h4>
+                <label class="property-checkbox"><input type="checkbox" id="grid-snap-setting"> Snap nodes to grid</label>
+                <label class="property-label">Grid size (px)</label>
+                <input class="property-input" id="grid-size-setting" type="number" min="1" step="1">
+            </div>
+            <div class="settings-section">
                 <h4>Story text</h4>
                 <label class="property-checkbox"><input type="checkbox" id="text-features-setting"> Enable text fonts, styling, and reveal animations</label>
                 <div class="settings-grid">
@@ -463,6 +480,8 @@
             <div class="settings-section">
                 <h4>Advanced defaults</h4>
                 <label class="property-checkbox"><input type="checkbox" id="advanced-setting"> Enable advanced text controls in node properties</label>
+                <label class="property-checkbox"><input type="checkbox" id="button-timing-setting"> Enable per-choice button appearance timing</label>
+                <label class="property-checkbox"><input type="checkbox" id="highlight-unconnected-setting"> Highlight output nodes with no connections</label>
                 <p style="color:#aaa;font-size:12px;">When enabled, text nodes expose color, size, alignment, weight, spacing, and per-node reveal controls.</p>
             </div>
         </div>
@@ -553,7 +572,19 @@
         let snappedConnectionPort = null;
         let autoConnectEnabled = false;
         const autoConnectRadius = 28;
-        const storySettings = Object.assign({ enabled: true, defaultWait: 1000, animation: 'instant', interval: 45, buttonLabel: 'Choice', inputPrompt: 'Enter your response:', defaultText: 'Enter your text here...', defaultQuestion: 'Question text', advanced: true }, JSON.parse(localStorage.getItem('storyMakerSettings') || '{}'));
+        function safeStorageGet(key, fallback = null) {
+            try { return window.localStorage.getItem(key) ?? fallback; }
+            catch (error) { return fallback; }
+        }
+        function safeStorageSet(key, value) {
+            try { window.localStorage.setItem(key, value); return true; }
+            catch (error) { return false; }
+        }
+        let savedStorySettings = {};
+        try { savedStorySettings = JSON.parse(safeStorageGet('storyMakerSettings', '{}')) || {}; }
+        catch (error) { savedStorySettings = {}; }
+        const storySettings = Object.assign({ enabled: true, defaultWait: 1000, animation: 'instant', interval: 45, buttonLabel: 'Choice', inputPrompt: 'Enter your response:', defaultText: 'Enter your text here...', defaultQuestion: 'Question text', advanced: true, buttonTiming: false, highlightUnconnected: false, gridSnap: false, gridSize: 20 }, savedStorySettings);
+        function snapCanvasValue(value) { return storySettings.gridSnap ? Math.round(value / Math.max(1, Number(storySettings.gridSize) || 20)) * Math.max(1, Number(storySettings.gridSize) || 20) : value; }
 
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvas-container');
@@ -608,8 +639,8 @@
             const node = {
                 id: nextNodeId++,
                 type: type,
-                x: x,
-                y: y,
+                x: snapCanvasValue(x),
+                y: snapCanvasValue(y),
                 data: getDefaultNodeData(type)
             };
 
@@ -671,6 +702,7 @@
         function renderNode(node) {
             const nodeEl = document.createElement('div');
             nodeEl.className = 'node';
+            nodeEl.classList.toggle('unconnected-output', hasUnconnectedOutput(node));
             nodeEl.id = `node-${node.id}`;
             nodeEl.style.left = node.x + 'px';
             nodeEl.style.top = node.y + 'px';
@@ -891,8 +923,8 @@
                 if (dx !== 0 || dy !== 0) nodeWasDragged = true;
 
                 dragStartPositions.forEach(item => {
-                    item.node.x = item.x + dx;
-                    item.node.y = item.y + dy;
+                    item.node.x = snapCanvasValue(item.x + dx);
+                    item.node.y = snapCanvasValue(item.y + dy);
                     const nodeEl = document.getElementById(`node-${item.node.id}`);
                     nodeEl.style.left = item.node.x + 'px';
                     nodeEl.style.top = item.node.y + 'px';
@@ -958,12 +990,34 @@
             undoStack.push(projectSnapshot()); restoreSnapshot(redoStack.pop());
         }
         document.addEventListener('keydown', (e) => {
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'f') { e.preventDefault(); openFindBar(false); return; }
+            if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'h') { e.preventDefault(); openFindBar(true); return; }
             const editingText = e.target.matches && e.target.matches('input, textarea, [contenteditable="true"]');
             if (!(e.ctrlKey || e.metaKey)) return;
             if (editingText || e.key.toLowerCase() !== 'z') return;
             e.preventDefault();
             e.shiftKey ? redo() : undo();
         });
+
+        let findMatches = [], findIndex = -1;
+        function findSettings() { return { text: document.getElementById('find-input').value, caseSensitive: document.getElementById('find-case-setting').checked }; }
+        function escapeEditorHtml(value) { const element = document.createElement('div'); element.textContent = value == null ? '' : String(value); return element.innerHTML; }
+        function containsFind(value) { const query=findSettings().text; return findSettings().caseSensitive ? value.includes(query) : value.toLowerCase().includes(query.toLowerCase()); }
+        function replaceFound(value, find, replacement) { return findSettings().caseSensitive ? value.split(find).join(replacement) : value.replace(new RegExp(find.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'gi'), replacement); }
+        function collectText(value, node, path = []) {
+            if (typeof value === 'string') { if (containsFind(value)) findMatches.push({node, path, value}); return; }
+            if (Array.isArray(value)) value.forEach((v, i) => collectText(v, node, path.concat(i)));
+            else if (value && typeof value === 'object') Object.entries(value).forEach(([key, v]) => collectText(v, node, path.concat(key)));
+        }
+        function openFindBar(replace) { const bar=document.getElementById('find-bar'); bar.style.display='block'; document.getElementById('replace-input').style.display=replace?'block':'none'; document.getElementById('replace-one-btn').style.display=replace?'inline-block':'none'; document.getElementById('replace-all-btn').style.display=replace?'inline-block':'none'; document.getElementById('find-input').focus(); findMatches=[]; findIndex=-1; }
+        function closeFindBar() { document.getElementById('find-bar').style.display='none'; }
+        function hasUnconnectedOutput(node) { if (!storySettings.highlightUnconnected || node.type === 'text' || node.data.ignoreUnconnected) return false; const count = getOutputCount(node); return Array.from({length: count}, (_, port) => !connections.some(connection => connection.fromNode === node.id && connection.fromPort === port)).some(Boolean); }
+        function refreshOutputWarnings() { nodes.forEach(node => { const element = document.querySelector(`[data-node-id="${node.id}"]`); if (element) element.classList.toggle('unconnected-output', hasUnconnectedOutput(node)); }); }
+        function findNext(direction) { findMatches=[]; nodes.forEach(n=>collectText(n.data,n)); if(!findMatches.length){document.getElementById('find-status').textContent='No matches';return;} findIndex=(findIndex+direction+findMatches.length)%findMatches.length; const match=findMatches[findIndex]; selectedNodes=[match.node]; selectedNode=match.node; document.querySelectorAll('.node').forEach(el => { el.classList.toggle('selected', Number(el.dataset.nodeId) === Number(match.node.id)); el.classList.toggle('find-hit', Number(el.dataset.nodeId) === Number(match.node.id)); }); showProperties(match.node); const content=document.querySelector('#node-'+match.node.id+' .node-content'); if(content){const safe=escapeEditorHtml(getNodePreview(match.node)); const query=findSettings().text.replace(/[.*+?^${}()|[\]\\]/g,'\\$&'); content.innerHTML=safe.replace(new RegExp(query,findSettings().caseSensitive?'g':'gi'),'<mark class="find-match">$&</mark>');} scale=Math.max(scale,1.6); const targetX=match.node.x+90; const targetY=match.node.y+60; panX=(canvasContainer.clientWidth/2)-(targetX*scale); panY=(canvasContainer.clientHeight/2)-(targetY*scale); updateCanvasTransform(); redrawConnections(); document.getElementById('find-status').textContent=(findIndex+1)+' of '+findMatches.length; }
+        function replaceCurrent() { if(findIndex<0){findNext(1);return;} pushUndoState(); const match=findMatches[findIndex]; const find=findSettings().text; const replacement=document.getElementById('replace-input').value; let target=match.node.data; match.path.forEach((key,i)=>{if(i===match.path.length-1) target[key]=replaceFound(target[key],find,replacement); else target=target[key];}); updateNodeDisplay(match.node); findNext(1); }
+        function replaceAllText() { const find=findSettings().text; if(!find)return; pushUndoState(); const replacement=document.getElementById('replace-input').value; nodes.forEach(node=>{const walk=v=>{if(typeof v==='string')return replaceFound(v,find,replacement);if(Array.isArray(v))return v.map(walk);if(v&&typeof v==='object'){Object.keys(v).forEach(k=>v[k]=walk(v[k]));}return v;};node.data=walk(node.data); updateNodeDisplay(node);}); findNext(1); }
+        document.getElementById('find-input').addEventListener('keydown', e => { if(e.key==='Enter') findNext(e.shiftKey?-1:1); if(e.key==='ArrowDown') findNext(1); if(e.key==='ArrowUp') findNext(-1); });
+        document.getElementById('replace-input').addEventListener('keydown', e => { if(e.key==='Enter') replaceCurrent(); });
 
         document.addEventListener('keydown', (e) => {
             if (!(e.ctrlKey || e.metaKey) || (e.target.matches && e.target.matches('input, textarea, [contenteditable="true"]'))) return;
@@ -1453,6 +1507,7 @@
 
                 svg.appendChild(removeBtn);
             });
+            refreshOutputWarnings();
         }
 
         function scheduleRedrawConnections() {
@@ -1505,6 +1560,8 @@
             const checkbox = document.getElementById('auto-connect-setting');
             checkbox.checked = autoConnectEnabled;
             checkbox.onchange = () => { autoConnectEnabled = checkbox.checked; };
+            document.getElementById('grid-snap-setting').checked = storySettings.gridSnap;
+            document.getElementById('grid-size-setting').value = storySettings.gridSize;
             document.getElementById('text-features-setting').checked = storySettings.enabled;
             document.getElementById('default-wait-setting').value = storySettings.defaultWait;
             document.getElementById('default-animation-setting').value = storySettings.animation;
@@ -1514,9 +1571,11 @@
             document.getElementById('default-button-setting').value = storySettings.buttonLabel;
             document.getElementById('default-prompt-setting').value = storySettings.inputPrompt;
             document.getElementById('advanced-setting').checked = storySettings.advanced;
+            document.getElementById('button-timing-setting').checked = storySettings.buttonTiming;
+            document.getElementById('highlight-unconnected-setting').checked = storySettings.highlightUnconnected;
             const save = () => {
                 storySettings.enabled = document.getElementById('text-features-setting').checked;
-                storySettings.defaultWait = Math.min(5000000000000, Math.max(0, Number(document.getElementById('default-wait-setting').value) || 1000));
+                storySettings.defaultWait = Math.min(5000, Math.max(50, Number(document.getElementById('default-wait-setting').value) || 1000));
                 storySettings.animation = document.getElementById('default-animation-setting').value;
                 storySettings.interval = Math.min(2000, Math.max(10, Number(document.getElementById('reveal-interval-setting').value) || 45));
                 storySettings.defaultText = document.getElementById('default-text-setting').value || 'Enter your text here...';
@@ -1524,9 +1583,13 @@
                 storySettings.buttonLabel = document.getElementById('default-button-setting').value || 'Choice';
                 storySettings.inputPrompt = document.getElementById('default-prompt-setting').value || 'Enter your response:';
                 storySettings.advanced = document.getElementById('advanced-setting').checked;
-                localStorage.setItem('storyMakerSettings', JSON.stringify(storySettings));
+                storySettings.buttonTiming = document.getElementById('button-timing-setting').checked;
+                storySettings.highlightUnconnected = document.getElementById('highlight-unconnected-setting').checked;
+                storySettings.gridSnap = document.getElementById('grid-snap-setting').checked;
+                storySettings.gridSize = Math.max(1, Number(document.getElementById('grid-size-setting').value) || 20);
+                safeStorageSet('storyMakerSettings', JSON.stringify(storySettings));
             };
-            ['text-features-setting','default-wait-setting','default-animation-setting','reveal-interval-setting','default-text-setting','default-question-setting','default-button-setting','default-prompt-setting','advanced-setting'].forEach(id => document.getElementById(id).onchange = save);
+            ['text-features-setting','default-wait-setting','default-animation-setting','reveal-interval-setting','default-text-setting','default-question-setting','default-button-setting','default-prompt-setting','advanced-setting','button-timing-setting','highlight-unconnected-setting','grid-snap-setting','grid-size-setting'].forEach(id => document.getElementById(id).onchange = save);
             document.getElementById('settings-modal').classList.add('open');
         }
 
@@ -1535,7 +1598,7 @@
         }
 
         function openGeminiGenerator() {
-            document.getElementById('gemini-key').value = localStorage.getItem('storyMakerGeminiKey') || '';
+            document.getElementById('gemini-key').value = safeStorageGet('storyMakerGeminiKey', '') || '';
             document.getElementById('gemini-modal').classList.add('open');
         }
 
@@ -1550,7 +1613,7 @@
         function restoreProjectSettings(project) {
             if (project.settings) Object.assign(storySettings, project.settings);
             if (typeof project.autoConnectEnabled === 'boolean') autoConnectEnabled = project.autoConnectEnabled;
-            localStorage.setItem('storyMakerSettings', JSON.stringify(storySettings));
+            safeStorageSet('storyMakerSettings', JSON.stringify(storySettings));
         }
         function openTextTransfer(mode) {
             textTransferMode = mode;
@@ -1598,7 +1661,7 @@
             const status = document.getElementById('gemini-status');
             const button = document.getElementById('gemini-generate-button');
             if (!key || !prompt) { status.textContent = 'Enter both an API key and a story prompt.'; return; }
-            localStorage.setItem('storyMakerGeminiKey', key);
+            safeStorageSet('storyMakerGeminiKey', key);
             button.disabled = true; status.textContent = 'Generating your story…';
             const schema = `{\"nodes\":[{\"id\":\"start\",\"type\":\"start\",\"data\":{\"label\":\"Start\"}},{\"id\":\"n1\",\"type\":\"text\",\"data\":{\"text\":\"...\"}}],\"connections\":[{\"fromNode\":\"start\",\"fromPort\":0,\"toNode\":\"n1\"}]}`;
             const currentGraph = useCurrent ? `\nHere is the current editor graph. Preserve useful existing nodes and IDs where possible, modify them when requested, and add or insert nodes and connections as needed:\n${JSON.stringify({ nodes, connections })}` : '';
@@ -1753,18 +1816,22 @@
             const waitInput = document.createElement('input');
             waitInput.type = 'number';
             waitInput.className = 'property-input';
-            waitInput.min = '50';
-            waitInput.max = '5000';
             waitInput.step = '50';
-            waitInput.value = Math.min(5000, Math.max(50, node.data.wait || 1000));
+            waitInput.value = node.data.wait ?? storySettings.defaultWait;
             waitInput.oninput = (e) => {
-                const value = Math.min(5000, Math.max(50, Number(e.target.value) || 50));
+                const value = Number(e.target.value);
                 node.data.wait = value;
-                e.target.value = value;
             };
             waitGroup.appendChild(waitLabel);
             waitGroup.appendChild(waitInput);
             content.appendChild(waitGroup);
+
+            const ignoreGroup = document.createElement('label');
+            ignoreGroup.className = 'property-checkbox';
+            ignoreGroup.innerHTML = '<input type="checkbox"> Ignore unconnected output highlighting for this node';
+            ignoreGroup.querySelector('input').checked = !!node.data.ignoreUnconnected;
+            ignoreGroup.querySelector('input').onchange = (e) => { node.data.ignoreUnconnected = e.target.checked; updateNodeDisplay(node); };
+            content.appendChild(ignoreGroup);
 
             if (storySettings.advanced && (node.type === 'text' || node.type === 'button' || node.type === 'input')) showTextStyleProperties(node, content);
 
@@ -1902,6 +1969,22 @@
                 choiceDiv.appendChild(labelInput);
                 choiceDiv.appendChild(textLabel);
                 choiceDiv.appendChild(textInput);
+
+                if (storySettings.buttonTiming) {
+                    const timingLabel = document.createElement('label');
+                    timingLabel.className = 'property-label';
+                    timingLabel.textContent = 'Appearance delay (ms)';
+                    timingLabel.style.marginTop = '8px';
+                    const timingInput = document.createElement('input');
+                    timingInput.className = 'property-input';
+                    timingInput.type = 'number';
+                    timingInput.min = '0';
+                    timingInput.step = '50';
+                    timingInput.value = choice.appearDelay || 0;
+                    timingInput.oninput = (e) => { choice.appearDelay = Number(e.target.value) || 0; };
+                    choiceDiv.appendChild(timingLabel);
+                    choiceDiv.appendChild(timingInput);
+                }
 
                 if (node.data.choices.length > 1) {
                     const removeBtn = document.createElement('button');
@@ -2563,12 +2646,21 @@
             content += '<div class="choices">';
             
             node.data.choices.forEach((choice, index) => {
-                const escapedLabel = escapeHtml(choice.label).replace(/'/g, "\\\\'");
+                const escapedLabel = escapeHtml(interpolate(choice.label)).replace(/'/g, "\\\\'");
                 content += '<button class="choice-btn" onclick="selectChoice(' + node.id + ', ' + index + ', \\'' + escapedLabel + '\\')">' + escapeHtml(choice.label) + '</button>';
             });
             
             content += '</div>';
             addMessage(content);
+            if (storySettings.buttonTiming) {
+                const message = document.querySelector('#chat-messages .message:last-child');
+                if (message) message.querySelectorAll('.choice-btn').forEach((button, index) => {
+                    const delay = Number(node.data.choices[index].appearDelay) || 0;
+                    button.style.opacity = '0';
+                    button.style.pointerEvents = 'none';
+                    setTimeout(() => { button.style.opacity = '1'; button.style.pointerEvents = 'auto'; }, delay);
+                });
+            }
         }
         
         function selectChoice(nodeId, choiceIndex, choiceLabel) {
@@ -2670,6 +2762,8 @@
         function submitInput(nodeId) {
             const node = nodes.find(n => n.id === nodeId);
             const input = document.getElementById('input-' + nodeId);
+            const submitButton = input && input.parentElement.querySelector('.submit-btn');
+            if (!input || node.data.submitted) return;
             const value = input.value.trim();
             
             if (!value) {
@@ -2677,7 +2771,10 @@
                 return;
             }
             
-            // Save to variable
+            // Save to variable and lock this input against duplicate submissions.
+            node.data.submitted = true;
+            input.disabled = true;
+            if (submitButton) { submitButton.disabled = true; submitButton.style.opacity = '0.6'; }
             setVar(node.data.variable, value);
             
             // Show user's response
@@ -2691,7 +2788,7 @@
         
         function handleLogic(node) {
             const varValue = getVar(node.data.variable);
-            const compareValue = node.data.value;
+            const compareValue = interpolate(node.data.value);
             let result = false;
             
             switch(node.data.condition) {
@@ -2721,7 +2818,7 @@
         
         function escapeHtml(text) {
             const div = document.createElement('div');
-            div.textContent = text;
+            div.textContent = interpolate(text);
             return div.innerHTML;
         }
         
@@ -2791,14 +2888,20 @@ ${'<' + '/html>'}`;
             input.click();
         }
 
-        // Auto-save to cookie every 5 seconds
+        function isEmbedded() {
+            try { return window.self !== window.top; }
+            catch (error) { return true; }
+        }
+
+        // Auto-save to browser storage every 5 seconds, except when embedded.
         function saveToLocal() {
+            if (isEmbedded()) return;
             const project = getProjectData();
-            localStorage.setItem('storyMakerProject', JSON.stringify(project));
+            safeStorageSet('storyMakerProject', JSON.stringify(project));
         }
 
         function loadFromLocal() {
-            const saved = localStorage.getItem('storyMakerProject');
+            const saved = safeStorageGet('storyMakerProject');
             if (saved) {
                 try {
                     const project = JSON.parse(saved);
@@ -2818,7 +2921,7 @@ ${'<' + '/html>'}`;
         }
 
         // Auto-save every 5 seconds
-        setInterval(saveToLocal, 5000);
+        if (!isEmbedded()) setInterval(saveToLocal, 5000);
 
         // Initialize with a start node or load saved project
         window.addEventListener('load', () => {
@@ -2829,7 +2932,7 @@ ${'<' + '/html>'}`;
         });
 
         // Save before unload
-        window.addEventListener('beforeunload', saveToLocal);
+        if (!isEmbedded()) window.addEventListener('beforeunload', saveToLocal);
     </script>
 </body>
 
