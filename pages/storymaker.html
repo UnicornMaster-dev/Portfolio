@@ -22,10 +22,10 @@
         }
 
         body {
-            font-family: Arial, sans-serif;
+            font-family: var(--page-font, Arial, sans-serif);
             overflow: hidden;
-            background: #1e1e1e;
-            color: #fff;
+            background: var(--page-background, #1e1e1e);
+            color: var(--toolbar-text, #fff);
         }
 
         #toolbar {
@@ -34,19 +34,29 @@
             left: 0;
             right: 0;
             height: 60px;
-            background: #2d2d2d;
+            background: var(--toolbar-background, #2d2d2d);
             border-bottom: 2px solid #444;
             display: flex;
             align-items: center;
             padding: 0 20px;
             gap: 10px;
+            overflow-x: auto;
+            overflow-y: hidden;
+            white-space: nowrap;
             z-index: 1000;
+            scrollbar-color: var(--settings-scrollbar-thumb, #007acc) var(--settings-scrollbar-track, #1e1e1e);
+            scrollbar-width: auto;
         }
+        #toolbar.toolbar-wrap { overflow: visible; white-space: normal; }
+        #toolbar::-webkit-scrollbar { height:12px; }
+        #toolbar::-webkit-scrollbar-track { background:var(--settings-scrollbar-track, #1e1e1e); }
+        #toolbar::-webkit-scrollbar-thumb { background:var(--settings-scrollbar-thumb, #007acc); border:3px solid var(--settings-scrollbar-track, #1e1e1e); border-radius:8px; }
+        #toolbar::-webkit-scrollbar-thumb:hover { background:var(--settings-scrollbar-hover, #005a9e); }
 
         .toolbar-btn {
             padding: 8px 16px;
-            background: #007acc;
-            color: white;
+            background: var(--toolbar-button, #007acc);
+            color: var(--toolbar-text, white);
             border: none;
             border-radius: 4px;
             cursor: pointer;
@@ -54,11 +64,11 @@
         }
 
         .toolbar-btn:hover {
-            background: #005a9e;
+            background: var(--toolbar-hover, #005a9e);
         }
 
         .toolbar-btn.secondary {
-            background: #6f42c1;
+            background: var(--toolbar-secondary, #6f42c1);
         }
 
         .toolbar-divider {
@@ -66,11 +76,12 @@
             height: 30px;
             background: #444;
             margin: 0 10px;
+            flex-shrink: 0;
         }
 
         #canvas-container {
             position: fixed;
-            top: 60px;
+            top: var(--toolbar-height, 60px);
             left: 0;
             right: 0;
             bottom: 0;
@@ -93,8 +104,10 @@
 
         .node {
             position: absolute;
-            background: #2d2d2d;
-            border: 2px solid #007acc;
+            background: var(--node-background, #2d2d2d);
+            border: 2px solid var(--node-border, #007acc);
+            color: var(--node-text, #fff);
+            font-family: var(--node-font, Arial, sans-serif);
             border-radius: 8px;
             min-width: 180px;
             padding: 10px;
@@ -103,10 +116,10 @@
         }
 
         .node.selected {
-            border-color: #ffa500;
-            box-shadow: 0 0 10px rgba(255, 165, 0, 0.5);
+            border-color: var(--node-highlight, #ffa500);
+            box-shadow: 0 0 10px color-mix(in srgb, var(--node-highlight, #ffa500) 50%, transparent);
         }
-        .node.unconnected-output { border-color:#ff5b5b; box-shadow:0 0 0 2px rgba(255,91,91,.35); }
+        .node.unconnected-output { border-color:var(--unconnected-highlight, #ff5b5b); box-shadow:0 0 0 2px var(--unconnected-highlight, #ff5b5b); }
         .node.find-hit { border-color:#ffe066; box-shadow:0 0 0 3px rgba(255,224,102,.55); }
         .node-content mark.find-match { background:#ffe066; color:#111; border-radius:2px; }
 
@@ -258,10 +271,19 @@
         #text-transfer-modal.open { display:flex; }
         #settings-modal { display:none; position:fixed; inset:0; z-index:2000; background:rgba(0,0,0,.75); align-items:center; justify-content:center; padding:24px; }
         #settings-modal.open { display:flex; }
-        .simple-window { width:min(420px, 96vw); max-height:90vh; overflow-y:auto; background:#222; border:1px solid #555; border-radius:8px; padding:18px; }
+        .simple-window { width:min(620px, 96vw); max-height:90vh; overflow-y:auto; background:#222; border:1px solid #555; border-radius:8px; padding:18px; scrollbar-color:var(--settings-scrollbar-thumb, #007acc) var(--settings-scrollbar-track, #1e1e1e); scrollbar-width:auto; }
+        .simple-window::-webkit-scrollbar { width:12px; }
+        .simple-window::-webkit-scrollbar-track { background:var(--settings-scrollbar-track, #1e1e1e); }
+        .simple-window::-webkit-scrollbar-thumb { background:var(--settings-scrollbar-thumb, #007acc); border:3px solid var(--settings-scrollbar-track, #1e1e1e); border-radius:8px; }
+        .simple-window::-webkit-scrollbar-thumb:hover { background:var(--settings-scrollbar-hover, #005a9e); }
         .settings-section { border-top:1px solid #444; margin-top:18px; padding-top:14px; }
         .settings-section h4 { color:#4db8ff; margin-bottom:12px; }
         .settings-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px; }
+        .settings-grid.three { grid-template-columns:repeat(3, 1fr); }
+        .toolbar-order-row { display:grid; grid-template-columns:1fr 90px; gap:8px; align-items:center; margin:6px 0; }
+        .toolbar-order-row label { color:#ddd; font-size:12px; }
+        .color-input { height:36px; padding:3px; }
+        .settings-help { color:#aaa; font-size:12px; line-height:1.4; margin:8px 0; }
         .property-checkbox { display:flex; gap:8px; align-items:center; color:#ddd; font-size:13px; margin:8px 0; }
         .transfer-window { width:min(760px,96vw); }
         .transfer-area { min-height:360px; width:100%; font-family:monospace; font-size:12px; }
@@ -282,7 +304,7 @@
         #properties-panel {
             position: fixed;
             left: -350px;
-            top: 60px;
+            top: var(--toolbar-height, 60px);
             bottom: 0;
             width: 350px;
             background: #2d2d2d;
@@ -386,26 +408,26 @@
 
 <body>
     <div id="toolbar">
-        <button class="toolbar-btn" onmousedown="startNodeDrag('start', event)">+ Start</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('text', event)">+ Text</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('button', event)">+ Buttons</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('image', event)">+ Image</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('javascript', event)">+ JavaScript</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('random', event)">+ Random</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('input', event)">+ User Input</button>
-        <button class="toolbar-btn" onmousedown="startNodeDrag('logic', event)">+ Logic</button>
+        <button class="toolbar-btn" data-toolbar-id="add-start" onmousedown="startNodeDrag('start', event)">+ Start</button>
+        <button class="toolbar-btn" data-toolbar-id="add-text" onmousedown="startNodeDrag('text', event)">+ Text</button>
+        <button class="toolbar-btn" data-toolbar-id="add-button" onmousedown="startNodeDrag('button', event)">+ Buttons</button>
+        <button class="toolbar-btn" data-toolbar-id="add-image" onmousedown="startNodeDrag('image', event)">+ Image</button>
+        <button class="toolbar-btn" data-toolbar-id="add-javascript" onmousedown="startNodeDrag('javascript', event)">+ JavaScript</button>
+        <button class="toolbar-btn" data-toolbar-id="add-random" onmousedown="startNodeDrag('random', event)">+ Random</button>
+        <button class="toolbar-btn" data-toolbar-id="add-input" onmousedown="startNodeDrag('input', event)">+ User Input</button>
+        <button class="toolbar-btn" data-toolbar-id="add-logic" onmousedown="startNodeDrag('logic', event)">+ Logic</button>
         <div class="toolbar-divider"></div>
-        <button class="toolbar-btn" onclick="exportStory()">Export HTML</button>
-        <button class="toolbar-btn secondary" onclick="previewStory()">Preview</button>
-        <button class="toolbar-btn" onclick="openDocumentation()">Documentation</button>
-        <button class="toolbar-btn" onclick="openSettings()">Settings</button>
-        <button class="toolbar-btn" onclick="saveProject()">Save JSON</button>
-        <button class="toolbar-btn" onclick="loadProject()">Load JSON</button>
-        <button class="toolbar-btn" onclick="openTextTransfer('export')">Export Text</button>
-        <button class="toolbar-btn" onclick="openTextTransfer('export-html')">Export HTML Text</button>
-        <button class="toolbar-btn" onclick="openTextTransfer('import')">Import Text</button>
-        <button class="toolbar-btn" onclick="clearCanvas()">Clear Canvas</button>
-        <button class="toolbar-btn secondary" onclick="openGeminiGenerator()">Generate with Gemini</button>
+        <button class="toolbar-btn" data-toolbar-id="export-html" onclick="exportStory()">Export HTML</button>
+        <button class="toolbar-btn secondary" data-toolbar-id="preview" onclick="previewStory()">Preview</button>
+        <button class="toolbar-btn" data-toolbar-id="documentation" onclick="openDocumentation()">Documentation</button>
+        <button class="toolbar-btn" data-toolbar-id="settings" onclick="openSettings()">Settings</button>
+        <button class="toolbar-btn" data-toolbar-id="save-json" onclick="saveProject()">Save JSON</button>
+        <button class="toolbar-btn" data-toolbar-id="load-json" onclick="loadProject()">Load JSON</button>
+        <button class="toolbar-btn" data-toolbar-id="export-text" onclick="openTextTransfer('export')">Export Text</button>
+        <button class="toolbar-btn" data-toolbar-id="export-html-text" onclick="openTextTransfer('export-html')">Export HTML Text</button>
+        <button class="toolbar-btn" data-toolbar-id="import-text" onclick="openTextTransfer('import')">Import Text</button>
+        <button class="toolbar-btn" data-toolbar-id="clear" onclick="clearCanvas()">Clear Canvas</button>
+        <button class="toolbar-btn secondary" data-toolbar-id="gemini" onclick="openGeminiGenerator()">Generate with Gemini</button>
     </div>
     <div id="find-bar" style="display:none;position:fixed;top:68px;right:18px;z-index:1200;background:#2d2d2d;border:1px solid #555;padding:10px;border-radius:5px;width:320px;box-shadow:0 5px 18px #0008">
         <input id="find-input" class="property-input" placeholder="Find text">
@@ -483,6 +505,41 @@
                 <label class="property-checkbox"><input type="checkbox" id="button-timing-setting"> Enable per-choice button appearance timing</label>
                 <label class="property-checkbox"><input type="checkbox" id="highlight-unconnected-setting"> Highlight output nodes with no connections</label>
                 <p style="color:#aaa;font-size:12px;">When enabled, text nodes expose color, size, alignment, weight, spacing, and per-node reveal controls.</p>
+            </div>
+            <div class="settings-section">
+                <h4>Editor appearance</h4>
+                <p class="settings-help">These styles affect the editor and are included in JSON, text transfer, local autosave, and exported HTML project settings.</p>
+                <div class="settings-grid">
+                    <div><label class="property-label">Page background</label><input class="property-input color-input" id="page-background-setting" type="color"></div>
+                    <div><label class="property-label">Page font</label><input class="property-input" id="page-font-setting" placeholder="Arial, sans-serif"></div>
+                    <div><label class="property-label">Toolbar background</label><input class="property-input color-input" id="toolbar-background-setting" type="color"></div>
+                    <div><label class="property-label">Toolbar text</label><input class="property-input color-input" id="toolbar-text-setting" type="color"></div>
+                    <div><label class="property-label">Button background</label><input class="property-input color-input" id="toolbar-button-setting" type="color"></div>
+                    <div><label class="property-label">Button hover</label><input class="property-input color-input" id="toolbar-hover-setting" type="color"></div>
+                    <div><label class="property-label">Node background</label><input class="property-input color-input" id="node-background-setting" type="color"></div>
+                    <div><label class="property-label">Node border</label><input class="property-input color-input" id="node-border-setting" type="color"></div>
+                    <div><label class="property-label">Selected node highlight</label><input class="property-input color-input" id="node-highlight-setting" type="color"></div>
+                    <div><label class="property-label">Unconnected output highlight</label><input class="property-input color-input" id="node-unconnected-highlight-setting" type="color"></div>
+                    <div><label class="property-label">Node text</label><input class="property-input color-input" id="node-text-setting" type="color"></div>
+                    <div><label class="property-label">Node font</label><input class="property-input" id="node-font-setting" placeholder="Arial, sans-serif"></div>
+                    <div><label class="property-label">Secondary button color</label><input class="property-input color-input" id="toolbar-secondary-setting" type="color"></div>
+                    <div><label class="property-label">Small display toolbar</label><select class="property-input" id="toolbar-overflow-setting"><option value="scroll">Horizontal scrollbar</option><option value="wrap">Wrap buttons</option></select></div>
+                </div>
+                <div class="settings-grid" style="margin-top:12px">
+                    <div><label class="property-label">Appearance profile</label><select class="property-input" id="appearance-profile-setting"><option value="">Current appearance</option></select></div>
+                    <div><label class="property-label">Profile name</label><input class="property-input" id="appearance-profile-name" placeholder="My theme"></div>
+                </div>
+                <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:10px">
+                    <button class="btn-small" onclick="saveAppearanceProfile()">Save profile</button>
+                    <button class="btn-small" onclick="loadAppearanceProfile()">Load profile</button>
+                    <button class="btn-small btn-remove" onclick="deleteAppearanceProfile()">Delete profile</button>
+                    <button class="btn-small" onclick="resetEditorAppearance()">Reset to default</button>
+                </div>
+            </div>
+            <div class="settings-section">
+                <h4>Top bar button locations</h4>
+                <p class="settings-help">Choose a position for each control. Moving one control shifts the others out of its way.</p>
+                <div id="toolbar-order-settings"></div>
             </div>
         </div>
     </div>
@@ -583,12 +640,46 @@
         let savedStorySettings = {};
         try { savedStorySettings = JSON.parse(safeStorageGet('storyMakerSettings', '{}')) || {}; }
         catch (error) { savedStorySettings = {}; }
-        const storySettings = Object.assign({ enabled: true, defaultWait: 1000, animation: 'instant', interval: 45, buttonLabel: 'Choice', inputPrompt: 'Enter your response:', defaultText: 'Enter your text here...', defaultQuestion: 'Question text', advanced: true, buttonTiming: false, highlightUnconnected: false, gridSnap: false, gridSize: 20 }, savedStorySettings);
+        const defaultToolbarOrder = ['add-start','add-text','add-button','add-image','add-javascript','add-random','add-input','add-logic','export-html','preview','documentation','settings','save-json','load-json','export-text','export-html-text','import-text','clear','gemini'];
+        const defaultEditorAppearance = { pageBackground:'#1e1e1e', pageFont:'Arial, sans-serif', toolbarBackground:'#2d2d2d', toolbarText:'#ffffff', toolbarButton:'#007acc', toolbarHover:'#005a9e', toolbarSecondary:'#6f42c1', nodeBackground:'#2d2d2d', nodeBorder:'#007acc', nodeHighlight:'#ffa500', unconnectedHighlight:'#ff5b5b', nodeText:'#ffffff', nodeFont:'Arial, sans-serif' };
+        const toolbarLabels = { 'add-start':'+ Start', 'add-text':'+ Text', 'add-button':'+ Buttons', 'add-image':'+ Image', 'add-javascript':'+ JavaScript', 'add-random':'+ Random', 'add-input':'+ User Input', 'add-logic':'+ Logic', 'export-html':'Export HTML', preview:'Preview', documentation:'Documentation', settings:'Settings', 'save-json':'Save JSON', 'load-json':'Load JSON', 'export-text':'Export Text', 'export-html-text':'Export HTML Text', 'import-text':'Import Text', clear:'Clear Canvas', gemini:'Generate with Gemini' };
+        const storySettings = Object.assign({ enabled: true, defaultWait: 1000, animation: 'instant', interval: 45, buttonLabel: 'Choice', inputPrompt: 'Enter your response:', defaultText: 'Enter your text here...', defaultQuestion: 'Question text', advanced: true, buttonTiming: false, highlightUnconnected: false, gridSnap: false, gridSize: 20, toolbarOverflow:'scroll', appearance: { ...defaultEditorAppearance }, appearanceProfiles: {}, toolbarOrder: defaultToolbarOrder.slice() }, savedStorySettings);
+        storySettings.appearance = Object.assign({}, defaultEditorAppearance, storySettings.appearance || {});
+        storySettings.appearanceProfiles = (storySettings.appearanceProfiles && typeof storySettings.appearanceProfiles === 'object') ? storySettings.appearanceProfiles : {};
+        storySettings.toolbarOrder = defaultToolbarOrder.filter(id => (storySettings.toolbarOrder || []).includes(id)).concat(defaultToolbarOrder.filter(id => !(storySettings.toolbarOrder || []).includes(id)));
+        function applyEditorAppearance() {
+            const a = storySettings.appearance;
+            const root = document.documentElement;
+            root.style.setProperty('--page-background', a.pageBackground); root.style.setProperty('--page-font', a.pageFont);
+            root.style.setProperty('--toolbar-background', a.toolbarBackground); root.style.setProperty('--toolbar-text', a.toolbarText);
+            root.style.setProperty('--toolbar-button', a.toolbarButton); root.style.setProperty('--toolbar-hover', a.toolbarHover); root.style.setProperty('--toolbar-secondary', a.toolbarSecondary);
+            root.style.setProperty('--node-background', a.nodeBackground || defaultEditorAppearance.nodeBackground); root.style.setProperty('--node-border', a.nodeBorder || defaultEditorAppearance.nodeBorder); root.style.setProperty('--node-highlight', a.nodeHighlight || defaultEditorAppearance.nodeHighlight); root.style.setProperty('--unconnected-highlight', a.unconnectedHighlight || defaultEditorAppearance.unconnectedHighlight); root.style.setProperty('--node-text', a.nodeText || defaultEditorAppearance.nodeText); root.style.setProperty('--node-font', a.nodeFont || defaultEditorAppearance.nodeFont);
+            root.style.setProperty('--settings-scrollbar-track', a.toolbarBackground); root.style.setProperty('--settings-scrollbar-thumb', a.toolbarButton); root.style.setProperty('--settings-scrollbar-hover', a.toolbarHover);
+        }
+        function applyToolbarOverflow() {
+            const toolbar = document.getElementById('toolbar');
+            toolbar.classList.toggle('toolbar-wrap', storySettings.toolbarOverflow === 'wrap');
+            toolbar.style.height = storySettings.toolbarOverflow === 'wrap' ? 'auto' : '60px';
+            requestAnimationFrame(() => { document.documentElement.style.setProperty('--toolbar-height', toolbar.offsetHeight + 'px'); });
+        }
+        function applyToolbarOrder() {
+            const toolbar = document.getElementById('toolbar');
+            const buttons = [...toolbar.querySelectorAll('[data-toolbar-id]')];
+            const byId = Object.fromEntries(buttons.map(button => [button.dataset.toolbarId, button]));
+            buttons.forEach(button => button.remove());
+            const divider = toolbar.querySelector('.toolbar-divider');
+            if (divider) divider.remove();
+            storySettings.toolbarOrder.forEach((id, index) => { toolbar.appendChild(byId[id]); if (index === 7) { const line = document.createElement('div'); line.className = 'toolbar-divider'; toolbar.appendChild(line); } });
+        }
+        function persistSettings() { safeStorageSet('storyMakerSettings', JSON.stringify(storySettings)); }
         function snapCanvasValue(value) { return storySettings.gridSnap ? Math.round(value / Math.max(1, Number(storySettings.gridSize) || 20)) * Math.max(1, Number(storySettings.gridSize) || 20) : value; }
 
         const canvas = document.getElementById('canvas');
         const canvasContainer = document.getElementById('canvas-container');
         const svg = document.getElementById('connections-svg');
+        applyEditorAppearance();
+        applyToolbarOrder();
+        applyToolbarOverflow();
         const propertiesPanel = document.getElementById('properties-panel');
 
         // Initialize
@@ -899,12 +990,13 @@
         let draggedNode = null;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
+        let dragUndoSaved = false;
 
         function startDragging(e, node) {
             if (e.button !== 0) return;
             if (!selectedNodes.includes(node)) selectNode(node);
-            pushUndoState();
             nodeWasDragged = false;
+            dragUndoSaved = false;
             dragStartPositions = selectedNodes.map(item => ({ node: item, x: item.x, y: item.y }));
             draggedNode = node;
             const nodeEl = document.getElementById(`node-${node.id}`);
@@ -920,7 +1012,13 @@
                 const y = (e.clientY - panY - 60) / scale - dragOffsetY;
                 const dx = x - dragStartPositions.find(item => item.node === draggedNode).x;
                 const dy = y - dragStartPositions.find(item => item.node === draggedNode).y;
-                if (dx !== 0 || dy !== 0) nodeWasDragged = true;
+                if (dx !== 0 || dy !== 0) {
+                    nodeWasDragged = true;
+                    if (!dragUndoSaved) {
+                        pushUndoState();
+                        dragUndoSaved = true;
+                    }
+                }
 
                 dragStartPositions.forEach(item => {
                     item.node.x = snapCanvasValue(item.x + dx);
@@ -946,6 +1044,15 @@
 
         // Node selection
         function selectNode(node, add = false) {
+            // A node press and the following click can both reach this function.
+            // Avoid rebuilding the properties panel when the selection did not
+            // actually change; this is especially noticeable on low-end devices.
+            if (!add && selectedNodes.length === 1 && selectedNodes[0] === node && selectedNode === node) {
+                if (!propertiesPanel.classList.contains('open')) showProperties(node);
+                return;
+            }
+            if (add && selectedNodes.includes(node) && selectedNode === node) return;
+
             if (!add) selectedNodes = [];
             if (!selectedNodes.includes(node)) selectedNodes.push(node);
             selectedNode = node;
@@ -1118,6 +1225,13 @@
             updateSvgSize();
         }
 
+        // Panning changes the position of the whole canvas, so its SVG
+        // connections move with it. Keep this path free of SVG resizing and
+        // connection reconstruction on every mousemove.
+        function updateCanvasPanTransform() {
+            canvas.style.transform = `translate(${panX}px, ${panY}px) scale(${scale})`;
+        }
+
         function updateSvgSize() {
             const width = window.innerWidth * 4 / scale;
             const height = window.innerHeight * 4 / scale;
@@ -1225,8 +1339,7 @@
                 panY += dy;
                 lastMouseX = e.clientX;
                 lastMouseY = e.clientY;
-                updateCanvasTransform();
-                redrawConnections();
+                updateCanvasPanTransform();
             }
         });
 
@@ -1556,10 +1669,63 @@
             document.getElementById('documentation-modal').classList.remove('open');
         }
 
+        function renderToolbarOrderSettings() {
+            const container = document.getElementById('toolbar-order-settings');
+            container.innerHTML = '';
+            storySettings.toolbarOrder.forEach((id, index) => {
+                const row = document.createElement('div'); row.className = 'toolbar-order-row';
+                const label = document.createElement('label'); label.textContent = toolbarLabels[id];
+                const select = document.createElement('select'); select.className = 'property-input';
+                storySettings.toolbarOrder.forEach((_, position) => { const option = document.createElement('option'); option.value = position; option.textContent = String(position + 1); if (position === index) option.selected = true; select.appendChild(option); });
+                select.onchange = () => { const from = storySettings.toolbarOrder.indexOf(id); const to = Number(select.value); storySettings.toolbarOrder.splice(from, 1); storySettings.toolbarOrder.splice(to, 0, id); applyToolbarOrder(); persistSettings(); renderToolbarOrderSettings(); };
+                row.append(label, select); container.appendChild(row);
+            });
+        }
+
+        const appearanceInputIds = ['page-background-setting','page-font-setting','toolbar-background-setting','toolbar-text-setting','toolbar-button-setting','toolbar-hover-setting','node-background-setting','node-border-setting','node-highlight-setting','node-unconnected-highlight-setting','node-text-setting','node-font-setting','toolbar-secondary-setting'];
+        const appearanceInputKeys = ['pageBackground','pageFont','toolbarBackground','toolbarText','toolbarButton','toolbarHover','nodeBackground','nodeBorder','nodeHighlight','unconnectedHighlight','nodeText','nodeFont','toolbarSecondary'];
+        function syncAppearanceFromInputs() {
+            appearanceInputIds.forEach((id, index) => storySettings.appearance[appearanceInputKeys[index]] = document.getElementById(id).value);
+        }
+        function writeAppearanceInputs(appearance) {
+            appearanceInputIds.forEach((id, index) => document.getElementById(id).value = appearance[appearanceInputKeys[index]] || defaultEditorAppearance[appearanceInputKeys[index]]);
+        }
+        function renderAppearanceProfiles(selected = '') {
+            const select = document.getElementById('appearance-profile-setting');
+            if (!select) return;
+            select.innerHTML = '<option value="">Current appearance</option>';
+            Object.keys(storySettings.appearanceProfiles).sort().forEach(name => {
+                const option = document.createElement('option'); option.value = name; option.textContent = name; option.selected = name === selected; select.appendChild(option);
+            });
+        }
+        function saveAppearanceProfile() {
+            syncAppearanceFromInputs();
+            const name = document.getElementById('appearance-profile-name').value.trim();
+            if (!name) { alert('Enter a name for this appearance profile.'); return; }
+            storySettings.appearanceProfiles[name] = { ...storySettings.appearance };
+            persistSettings(); renderAppearanceProfiles(name);
+            document.getElementById('appearance-profile-name').value = '';
+        }
+        function loadAppearanceProfile() {
+            const name = document.getElementById('appearance-profile-setting').value;
+            if (!name || !storySettings.appearanceProfiles[name]) return;
+            storySettings.appearance = { ...defaultEditorAppearance, ...storySettings.appearanceProfiles[name] };
+            writeAppearanceInputs(storySettings.appearance); applyEditorAppearance(); persistSettings();
+        }
+        function deleteAppearanceProfile() {
+            const name = document.getElementById('appearance-profile-setting').value;
+            if (!name || !storySettings.appearanceProfiles[name]) return;
+            delete storySettings.appearanceProfiles[name]; persistSettings(); renderAppearanceProfiles();
+        }
+        function resetEditorAppearance() {
+            storySettings.appearance = { ...defaultEditorAppearance };
+            writeAppearanceInputs(storySettings.appearance); applyEditorAppearance(); persistSettings(); renderAppearanceProfiles();
+        }
+
         function openSettings() {
             const checkbox = document.getElementById('auto-connect-setting');
             checkbox.checked = autoConnectEnabled;
-            checkbox.onchange = () => { autoConnectEnabled = checkbox.checked; };
+            checkbox.onchange = () => { autoConnectEnabled = checkbox.checked; persistSettings(); };
             document.getElementById('grid-snap-setting').checked = storySettings.gridSnap;
             document.getElementById('grid-size-setting').value = storySettings.gridSize;
             document.getElementById('text-features-setting').checked = storySettings.enabled;
@@ -1573,6 +1739,10 @@
             document.getElementById('advanced-setting').checked = storySettings.advanced;
             document.getElementById('button-timing-setting').checked = storySettings.buttonTiming;
             document.getElementById('highlight-unconnected-setting').checked = storySettings.highlightUnconnected;
+            document.getElementById('toolbar-overflow-setting').value = storySettings.toolbarOverflow === 'wrap' ? 'wrap' : 'scroll';
+            writeAppearanceInputs(storySettings.appearance);
+            renderAppearanceProfiles();
+            renderToolbarOrderSettings();
             const save = () => {
                 storySettings.enabled = document.getElementById('text-features-setting').checked;
                 storySettings.defaultWait = Math.min(5000, Math.max(50, Number(document.getElementById('default-wait-setting').value) || 1000));
@@ -1587,9 +1757,13 @@
                 storySettings.highlightUnconnected = document.getElementById('highlight-unconnected-setting').checked;
                 storySettings.gridSnap = document.getElementById('grid-snap-setting').checked;
                 storySettings.gridSize = Math.max(1, Number(document.getElementById('grid-size-setting').value) || 20);
-                safeStorageSet('storyMakerSettings', JSON.stringify(storySettings));
+                storySettings.toolbarOverflow = document.getElementById('toolbar-overflow-setting').value === 'wrap' ? 'wrap' : 'scroll';
+                syncAppearanceFromInputs();
+                applyEditorAppearance();
+                applyToolbarOverflow();
+                persistSettings();
             };
-            ['text-features-setting','default-wait-setting','default-animation-setting','reveal-interval-setting','default-text-setting','default-question-setting','default-button-setting','default-prompt-setting','advanced-setting','button-timing-setting','highlight-unconnected-setting','grid-snap-setting','grid-size-setting'].forEach(id => document.getElementById(id).onchange = save);
+            ['text-features-setting','default-wait-setting','default-animation-setting','reveal-interval-setting','default-text-setting','default-question-setting','default-button-setting','default-prompt-setting','advanced-setting','button-timing-setting','highlight-unconnected-setting','grid-snap-setting','grid-size-setting','toolbar-overflow-setting', ...appearanceInputIds].forEach(id => { document.getElementById(id).onchange = save; document.getElementById(id).oninput = save; });
             document.getElementById('settings-modal').classList.add('open');
         }
 
@@ -1613,7 +1787,10 @@
         function restoreProjectSettings(project) {
             if (project.settings) Object.assign(storySettings, project.settings);
             if (typeof project.autoConnectEnabled === 'boolean') autoConnectEnabled = project.autoConnectEnabled;
-            safeStorageSet('storyMakerSettings', JSON.stringify(storySettings));
+            storySettings.appearance = Object.assign(storySettings.appearance, project.settings && project.settings.appearance || {});
+            storySettings.toolbarOverflow = project.settings && project.settings.toolbarOverflow === 'wrap' ? 'wrap' : (storySettings.toolbarOverflow === 'wrap' ? 'wrap' : 'scroll');
+            storySettings.toolbarOrder = defaultToolbarOrder.filter(id => (storySettings.toolbarOrder || []).includes(id)).concat(defaultToolbarOrder.filter(id => !(storySettings.toolbarOrder || []).includes(id)));
+            applyEditorAppearance(); applyToolbarOrder(); applyToolbarOverflow(); persistSettings();
         }
         function openTextTransfer(mode) {
             textTransferMode = mode;
@@ -2373,6 +2550,8 @@
             const nodesJSON = JSON.stringify(nodes);
             const connectionsJSON = JSON.stringify(connections);
             const settingsJSON = JSON.stringify(storySettings);
+            const appearance = storySettings.appearance || {};
+            const cssValue = value => String(value || '').replace(/[;{}<>]/g, '');
             const webFontImports = [...new Set(nodes.map(node => node.data && node.data.style && node.data.style.webFontUrl).filter(Boolean))].map(url => `@import url("${url.replace(/"/g, '')}");`).join('');
 
             return `<!DOCTYPE html>
@@ -2389,8 +2568,8 @@
         }
         
         body {
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            font-family: ${cssValue(appearance.pageFont || "'Segoe UI', Tahoma, Geneva, Verdana, sans-serif")};
+            background: ${cssValue(appearance.pageBackground || '#667eea')};
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -2402,7 +2581,7 @@
         #chat-container {
             max-width: 600px;
             width: 100%;
-            background: white;
+            background: ${cssValue(appearance.nodeBackground || 'white')};
             border-radius: 10px;
             box-shadow: 0 10px 40px rgba(0,0,0,0.3);
             overflow: hidden;
@@ -2413,8 +2592,8 @@
         }
         
         #chat-header {
-            background: #667eea;
-            color: white;
+            background: ${cssValue(appearance.toolbarButton || '#667eea')};
+            color: ${cssValue(appearance.toolbarText || 'white')};
             padding: 20px;
             font-size: 20px;
             font-weight: bold;
@@ -2424,7 +2603,7 @@
             flex: 1;
             overflow-y: auto;
             padding: 20px;
-            background: #f5f5f5;
+            background: ${cssValue(appearance.pageBackground || '#f5f5f5')};
         }
         
         .message {
@@ -2463,8 +2642,8 @@
         }
         
         .choice-btn {
-            background: #667eea;
-            color: white;
+            background: ${cssValue(appearance.toolbarButton || '#667eea')};
+            color: ${cssValue(appearance.toolbarText || 'white')};
             border: none;
             padding: 12px 20px;
             border-radius: 8px;
@@ -2492,13 +2671,13 @@
         .user-input {
             flex: 1;
             padding: 10px;
-            border: 2px solid #667eea;
+            border: 2px solid ${cssValue(appearance.toolbarButton || '#667eea')};
             border-radius: 8px;
             font-size: 16px;
         }
         
         .submit-btn {
-            background: #667eea;
+            background: ${cssValue(appearance.toolbarButton || '#667eea')};
             color: white;
             border: none;
             padding: 10px 20px;
@@ -2508,7 +2687,7 @@
         }
         
         .submit-btn:hover {
-            background: #5568d3;
+            background: ${cssValue(appearance.toolbarHover || '#5568d3')};
         }
     </style>
 </head>
