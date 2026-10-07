@@ -1031,6 +1031,7 @@
                     // and top on every mouse event.
                     nodeEl.style.transform = `translate(${item.node.x - item.x}px, ${item.node.y - item.y}px)`;
                 });
+                scheduleDraggedConnectionUpdate();
 
             } else if (isConnecting && tempLine) {
                 updateTempLine(e);
@@ -1596,6 +1597,7 @@
                 path.setAttribute('stroke-width', '2');
                 path.setAttribute('fill', 'none');
                 path.classList.add('connection-line');
+                path.dataset.connectionId = conn.id;
                 path.style.pointerEvents = 'stroke';
 
                 svg.appendChild(path);
@@ -1606,6 +1608,7 @@
 
                 const removeBtn = document.createElementNS('http://www.w3.org/2000/svg', 'g');
                 removeBtn.classList.add('connection-remove');
+                removeBtn.dataset.connectionId = conn.id;
                 removeBtn.style.cursor = 'pointer';
 
                 const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
@@ -1642,6 +1645,51 @@
                 svg.appendChild(removeBtn);
             });
             refreshOutputWarnings();
+        }
+
+        function updateConnectionsForNodes(nodeIds) {
+            const movedIds = new Set(nodeIds);
+            connections.forEach(conn => {
+                if (!movedIds.has(conn.fromNode) && !movedIds.has(conn.toNode)) return;
+
+                const fromPorts = document.querySelectorAll(`#node-${conn.fromNode} .node-port.output`);
+                const fromPort = fromPorts[conn.fromPort];
+                const toPort = document.querySelector(`#node-${conn.toNode} .node-port.input`);
+                const path = svg.querySelector(`.connection-line[data-connection-id="${conn.id}"]`);
+                const removeBtn = svg.querySelector(`.connection-remove[data-connection-id="${conn.id}"]`);
+                if (!fromPort || !toPort || !path || !removeBtn) return;
+
+                const fromRect = fromPort.getBoundingClientRect();
+                const toRect = toPort.getBoundingClientRect();
+                const x1 = screenToCanvasX(fromRect.left + fromRect.width / 2);
+                const y1 = screenToCanvasY(fromRect.top + fromRect.height / 2);
+                const x2 = screenToCanvasX(toRect.left + toRect.width / 2);
+                const y2 = screenToCanvasY(toRect.top + toRect.height / 2);
+                const curveMidY = y1 + (y2 - y1) * 0.5;
+                const midX = (x1 + x2) / 2;
+                const midY = (y1 + y2) / 2;
+
+                path.setAttribute('d', `M ${x1} ${y1} C ${x1} ${curveMidY}, ${x2} ${curveMidY}, ${x2} ${y2}`);
+                const circle = removeBtn.querySelector('circle');
+                const lines = removeBtn.querySelectorAll('line');
+                circle?.setAttribute('cx', midX); circle?.setAttribute('cy', midY);
+                if (lines.length === 2) {
+                    lines[0].setAttribute('x1', midX - 4); lines[0].setAttribute('y1', midY - 4);
+                    lines[0].setAttribute('x2', midX + 4); lines[0].setAttribute('y2', midY + 4);
+                    lines[1].setAttribute('x1', midX + 4); lines[1].setAttribute('y1', midY - 4);
+                    lines[1].setAttribute('x2', midX - 4); lines[1].setAttribute('y2', midY + 4);
+                }
+            });
+        }
+
+        let draggedConnectionUpdateQueued = false;
+        function scheduleDraggedConnectionUpdate() {
+            if (draggedConnectionUpdateQueued) return;
+            draggedConnectionUpdateQueued = true;
+            requestAnimationFrame(() => {
+                draggedConnectionUpdateQueued = false;
+                updateConnectionsForNodes(selectedNodes.map(node => node.id));
+            });
         }
 
         function scheduleRedrawConnections() {
